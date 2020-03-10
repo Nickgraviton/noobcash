@@ -1,70 +1,74 @@
-from time import time
-
 from collections import OrderedDict
+
+import time
+import json
 import binascii
 import Crypto
 import Crypto.Random
 from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
+
 import requests
 from flask import Flask, jsonify, request, render_template
 
-import hashlib
-import json
-from urllib.parse import urlparse
-from uuid import uuid4
-
 class Transaction_Input:
+    """
+    previous_output_id: Id of previous transaction output
+    """
+
     def __init__(self, transaction_id):
-        self.previousOutputId = transaction_id
+        self.previous_output_id = transaction_id
 
     def to_dict(self):
-        return {'previousOutputId': self.previousOutputId}
+        return OrderedDict({'previous_output_id': self.previous_output_id})
+
 
 class Transaction_Output:
-    def __init__(self, originTransactionId, recipient_address, amount):
-        transaction_dict = {'originTransactionId': originTransactionId,
-                            'recipient_address': recipient_address,
-                            'amount': amount}
+    """
+    origin_transaction_id: Id of transaction origin
+    recipient address: Address of transaction's recipient
+    amount: Amount to be transferred with this transaction
+    transactions_dict: Dictionary of transaction details along with unique timestamp
+    unique_id: Unique id created based on the transaction's details
+    """
 
-        self.uniqueId = hashlib.sha256(json.dumps(transaction_dict, sort_keys=True).encode()).hexdigest()
-        self.originTransactionId = originTransactionId
+    def __init__(self, origin_transaction_id, recipient_address, amount):
+        self.origin_transaction_id = origin_transaction_id
         self.recipient_address = recipient_address
         self.amount = amount
+        self.transaction_dict = OrderedDict({'origin_transaction_id': origin_transaction_id,
+                                             'recipient_address': recipient_address,
+                                             'amount': amount,
+                                             'timestamp': time.time()})
+        self.unique_id = SHA.new(json.dumps(transaction_dict).encode('utf-8')).hexdigest()
 
     def to_dict(self):
-        return {'originTransactionId': self.originTransactionId,
-                'recipient_address': self.recipient_address,
-                'amount': self.amount}
+        return self.transaction_dict
+
 
 class Transaction:
+    """
+    sender_address: Public key of sender's wallet
+    recipient_address: Public key of recipient's wallet
+    amount: Amount to be transferred
+    timestamp: Timestamp of transaction
+    transaction_id: Unique hash of transaction
+    transaction_inputs: List of Transaction Input Objects
+    transaction_outputs: List of Transaction Output Objects
+    signature: Signature of transaction
+    """
 
     def __init__(self, sender_address, recipient_address, amount):
-        ##set
-
-        #self.sender_address: To public key του wallet από το οποίο προέρχονται τα χρήματα
-        #self.receiver_address:(recipient_address) To public key του wallet στο οποίο θα καταλήξουν τα χρήματα
-        #self.amount: το ποσό που θα μεταφερθεί
-        #self.transaction_id: το hash του transaction (μοναδικό αναγνωριστικό)
-        #self.transaction_inputs: λίστα από Transaction Input
-        #self.transaction_outputs: λίστα από Transaction Output
-        #selfSignature
-
         self.sender_address = sender_address
         self.recipient_address = recipient_address
         self.amount = amount
-        self.timestamp = time()
+        self.timestamp = time.time()
         self.transaction_id = []
         self.transaction_inputs = []
         self.transaction_outputs = []
         self.signature = []
 
-    # Return the transaction in Dictionary form
-    # to_dict returns every attribute of Transaction class
-	# No special treatment.
-	# Every other function that needs specific attributes of the class
-	# should create its own dictionary.
     def to_dict(self):
         transanction_inputs_to_dict = []
 
@@ -76,70 +80,35 @@ class Transaction:
         for transaction_output in self.transaction_outputs:
             transanction_outputs_to_dict.append(transaction_output.to_dict())
 
-        return {"sender_address": self.sender_address,
-                "recipient_address": self.recipient_address,
-                "amount": self.amount,
-                "timestamp": self.timestamp,
-                "transaction_id": self.transaction_id,
-                "transaction_inputs": transanction_inputs_to_dict,
-                "transaction_outputs": transanction_outputs_to_dict,
-                "signature": self.signature}
+        return OrderedDict({'sender_address': self.sender_address,
+                            'recipient_address': self.recipient_address,
+                            'amount': self.amount,
+                            'timestamp': self.timestamp,
+                            'transaction_id': self.transaction_id,
+                            'transaction_inputs': transanction_inputs_to_dict,
+                            'transaction_outputs': transanction_outputs_to_dict,
+                            'signature': self.signature})
 
     def sign_transaction(self, sender_private_key):
-        # Sign transaction with private key
+        key = RSA.importKey(binascii.unhexlify(sender_private_key))
+        signer = PKCS1_v1_5.new(key)
+        info = OrderedDict({'sender_address': self.sender_address,
+                            'recipient_address': self.recipient_address,
+                            'amount': self.amount,
+                            'timestamp': self.timestamp})
 
-        # Import the private RSA key in binary format
-        spk = RSA.importKey(binascii.unhexlify(sender_private_key))
-
-        # Public Key Certificate Standards
-        # This is the signature which we will use to sign the transaction
-        signer = PKCS1_v1_5.new(spk)
-
-        # Get all the necessary info to sign in dictionary format
-        info = {"sender_address": self.sender_address,
-        		"recipient_address": self.recipient_address,
-        		"amount": self.amount,
-        		"timestamp": self.timestamp
-        		}
-
-        # Use a Secure Hash Algorithm
-        # so that the dictionary can be hashable
-        # h = SHA.new(str(info).encode('utf8'))
-
-        info_str = json.dumps(info, sort_keys=True).encode()
-
-        # Use a SHAlgorithm so that transaction can be hashable
-        h = SHA.new(info_str)
-
-        # Sign the transaction and return it decoded according to ascii
+        h = SHA.new(json.dumps(info).encode('utf-8'))
         return binascii.hexlify(signer.sign(h)).decode('ascii')
 
     def hash(self):
-        """
-		Create a SHA-256 hash of a transaction
-		"""
-		# Use specific attributes to calculate hash.
-		# We  do not need current_hash attribute.
-		# Thus we create the following sub-dictionary.
-
-        info = {"sender_address": self.sender_address,
-                "recipient_address": self.recipient_address,
-                "amount": self.amount,
-                "timestamp": self.timestamp,
-                # "transaction_inputs": transanction_inputs_to_dict,
-                # "transaction_outputs": transanction_outputs_to_dict,
-                "signature": self.signature}
-
-		# We must make sure that the Dictionary is Ordered
-		# in order to avoid inconsistent hashes.
-        # See the respective comment for Block class
-        transaction_string = json.dumps(info, sort_keys=True).encode()
-
-        return hashlib.sha256(transaction_string).hexdigest()
-
-    # def print_transaction(self):
-    #     print("TRANSACTION OPEN")
-    
+        info = OrderedDict({'sender_address': self.sender_address,
+                            'recipient_address': self.recipient_address,
+                            'amount': self.amount,
+                            'timestamp': self.timestamp,
+                            # "transaction_inputs": transanction_inputs_to_dict,
+                            # "transaction_outputs": transanction_outputs_to_dict,
+                            'signature': self.signature})
+        return SHA.new(json.dumps(info).encode('utf-8')).hexdigest()
 
 ##να δω με ποια λογικη κανει ετσι το hashing
 ##https://github.com/adilmoujahid/blockchain-python-tutorial/blob/master/blockchain_client/blockchain_client.py

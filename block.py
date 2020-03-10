@@ -1,22 +1,34 @@
-
-import blockchain
-
-
-
+import time
+from collections import OrderedDict
+from Crypto.Hash import SHA
 
 class Block:
-	def __init__(self):
-		##set
+    """
+    timestamp: Timestamp of block's creation
+    index: Unique index of block
+    list_of_transactions: List of transactions in this block
+    previous_hash: Hash of previous block
+    nonce: Nonce found through proof-of-work
+    current_hash: Hash of current block
+    """
 
-		#self.previousHash
-		#self.timestamp
-		#self.hash
-		#self.nonce
-		#self.listOfTransactions
-	
-	def myHash:
-		#calculate self.hash
+    def __init__(self, index, list_of_transactions, previous_hash, nonce):
+        self.timestamp = time.time()
+        self.index = index
+        self.list_of_transactions = list_of_transactions
+        self.previous_hash = previous_hash
+        self.nonce = nonce
+        self.current_hash = hash()
 
+    def to_dict(self):
+        return OrderedDict({'timestamp': self.timestamp,
+                            'index': self.index,
+                            'list_of_transactions': self.list_of_transactions,
+                            'previous_hash': self.previous_hash,
+                            'nonce': self.nonce})
 
-	def add_transaction(transaction transaction, blockchain blockchain):
-		#add a transaction to the block
+    def hash(self):
+        return SHA.new(json.dumps(self.to_dict()).encode('utf-8')).hexdigest()
+
+    def add_transaction(transaction, blockchain):
+        #add a transaction to the block
