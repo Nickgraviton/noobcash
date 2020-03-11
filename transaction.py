@@ -1,13 +1,12 @@
-from collections import OrderedDict
-
 import time
 import json
 import binascii
 import Crypto
 import Crypto.Random
-from Crypto.Hash import SHA
+from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
+from collections import OrderedDict
 
 import requests
 from flask import Flask, jsonify, request, render_template
@@ -41,7 +40,7 @@ class Transaction_Output:
                                              'recipient_address': recipient_address,
                                              'amount': amount,
                                              'timestamp': time.time()})
-        self.unique_id = SHA.new(json.dumps(transaction_dict).encode('utf-8')).hexdigest()
+        self.unique_id = SHA256.new(json.dumps(transaction_dict).encode('utf-8')).hexdigest()
 
     def to_dict(self):
         return self.transaction_dict
@@ -97,7 +96,7 @@ class Transaction:
                             'amount': self.amount,
                             'timestamp': self.timestamp})
 
-        h = SHA.new(json.dumps(info).encode('utf-8'))
+        h = SHA256.new(json.dumps(info).encode('utf-8'))
         return binascii.hexlify(signer.sign(h)).decode('ascii')
 
     def hash(self):
@@ -108,7 +107,7 @@ class Transaction:
                             # "transaction_inputs": transanction_inputs_to_dict,
                             # "transaction_outputs": transanction_outputs_to_dict,
                             'signature': self.signature})
-        return SHA.new(json.dumps(info).encode('utf-8')).hexdigest()
+        return SHA256.new(json.dumps(info).encode('utf-8')).hexdigest()
 
 ##να δω με ποια λογικη κανει ετσι το hashing
 ##https://github.com/adilmoujahid/blockchain-python-tutorial/blob/master/blockchain_client/blockchain_client.py

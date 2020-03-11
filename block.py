@@ -1,6 +1,6 @@
 import time
 from collections import OrderedDict
-from Crypto.Hash import SHA
+from Crypto.Hash import SHA256
 
 class Block:
     """
@@ -28,7 +28,4 @@ class Block:
                             'nonce': self.nonce})
 
     def hash(self):
-        return SHA.new(json.dumps(self.to_dict()).encode('utf-8')).hexdigest()
-
-    def add_transaction(transaction, blockchain):
-        #add a transaction to the block
+        return SHA256.new(json.dumps(self.to_dict()).encode('utf-8')).hexdigest()

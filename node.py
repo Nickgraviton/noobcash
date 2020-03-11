@@ -11,11 +11,6 @@ class node:
         #self.NBCs
         #self.wallet
 
-        #slef.ring[]   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
-
-
-
-
         def create_new_block():
 
         def create_wallet():
