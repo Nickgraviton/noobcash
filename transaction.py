@@ -43,7 +43,7 @@ class Transaction_Output:
         self.unique_id = SHA256.new(json.dumps(transaction_dict).encode('utf-8')).hexdigest()
 
     def to_dict(self):
-        return self.transaction_dict
+        return self.transaction_dict['unique_id': self.unique_id]
 
 
 class Transaction:
@@ -66,7 +66,7 @@ class Transaction:
         self.transaction_id = []
         self.transaction_inputs = []
         self.transaction_outputs = []
-        self.signature = []
+        self.signature = None
 
     def to_dict(self):
         transanction_inputs_to_dict = []
@@ -88,26 +88,8 @@ class Transaction:
                             'transaction_outputs': transanction_outputs_to_dict,
                             'signature': self.signature})
 
-    def sign_transaction(self, sender_private_key):
-        key = RSA.importKey(binascii.unhexlify(sender_private_key))
-        signer = PKCS1_v1_5.new(key)
-        info = OrderedDict({'sender_address': self.sender_address,
-                            'recipient_address': self.recipient_address,
-                            'amount': self.amount,
-                            'timestamp': self.timestamp})
-
-        h = SHA256.new(json.dumps(info).encode('utf-8'))
-        return binascii.hexlify(signer.sign(h)).decode('ascii')
-
     def hash(self):
-        info = OrderedDict({'sender_address': self.sender_address,
-                            'recipient_address': self.recipient_address,
-                            'amount': self.amount,
-                            'timestamp': self.timestamp,
-                            # "transaction_inputs": transanction_inputs_to_dict,
-                            # "transaction_outputs": transanction_outputs_to_dict,
-                            'signature': self.signature})
-        return SHA256.new(json.dumps(info).encode('utf-8')).hexdigest()
+        return SHA256.new(json.dumps(self.to_dict()).encode('utf-8')).hexdigest()
 
 ##να δω με ποια λογικη κανει ετσι το hashing
 ##https://github.com/adilmoujahid/blockchain-python-tutorial/blob/master/blockchain_client/blockchain_client.py
