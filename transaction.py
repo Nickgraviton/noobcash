@@ -1,23 +1,15 @@
 import time
 import json
-import binascii
-import Crypto
-import Crypto.Random
 from Crypto.Hash import SHA256
-from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_v1_5
 from collections import OrderedDict
-
-import requests
-from flask import Flask, jsonify, request, render_template
 
 class Transaction_Input:
     """
     previous_output_id: Id of previous transaction output
     """
 
-    def __init__(self, transaction_id):
-        self.previous_output_id = transaction_id
+    def __init__(self, previous_output_id):
+        self.previous_output_id = previous_output_id
 
     def to_dict(self):
         return OrderedDict({'previous_output_id': self.previous_output_id})
@@ -41,9 +33,10 @@ class Transaction_Output:
                                              'amount': amount,
                                              'timestamp': time.time()})
         self.unique_id = SHA256.new(json.dumps(transaction_dict).encode('utf-8')).hexdigest()
-
+        self.transaction_dict['unique_id'] = self.unique_id
+    
     def to_dict(self):
-        return self.transaction_dict['unique_id': self.unique_id]
+        return self.transaction_dict
 
 
 class Transaction:
@@ -51,46 +44,38 @@ class Transaction:
     sender_address: Public key of sender's wallet
     recipient_address: Public key of recipient's wallet
     amount: Amount to be transferred
-    timestamp: Timestamp of transaction
+    timestamp: Timestamp of transaction. If provided we used the given value
+               else we get the current timestamp
     transaction_id: Unique hash of transaction
     transaction_inputs: List of Transaction Input Objects
     transaction_outputs: List of Transaction Output Objects
     signature: Signature of transaction
     """
 
-    def __init__(self, sender_address, recipient_address, amount):
+    def __init__(self, sender_address, recipient_address, amount, timestamp=None):
         self.sender_address = sender_address
         self.recipient_address = recipient_address
         self.amount = amount
-        self.timestamp = time.time()
-        self.transaction_id = []
+        if timestamp == None:
+            self.timestamp = time.time()
+        else:
+            self.timestamp = timestamp
+        self.transaction_id = self.hash()
         self.transaction_inputs = []
         self.transaction_outputs = []
         self.signature = None
 
-    def to_dict(self):
-        transanction_inputs_to_dict = []
-
-        for transaction_input in self.transaction_inputs:
-            transanction_inputs_to_dict.append(transaction_input.to_dict())
-
-        transanction_outputs_to_dict = []
-
-        for transaction_output in self.transaction_outputs:
-            transanction_outputs_to_dict.append(transaction_output.to_dict())
-
+    def _to_dict(self):
         return OrderedDict({'sender_address': self.sender_address,
                             'recipient_address': self.recipient_address,
                             'amount': self.amount,
-                            'timestamp': self.timestamp,
-                            'transaction_id': self.transaction_id,
-                            'transaction_inputs': transanction_inputs_to_dict,
-                            'transaction_outputs': transanction_outputs_to_dict,
-                            'signature': self.signature})
+                            'timestamp': self.timestamp})
+
+    def to_dict(self):
+        info = self._to_dict()
+        info['transaction_id'] = self.transaction_id
+        info['signature'] = self.signature
+        return info
 
     def hash(self):
-        return SHA256.new(json.dumps(self.to_dict()).encode('utf-8')).hexdigest()
-
-##να δω με ποια λογικη κανει ετσι το hashing
-##https://github.com/adilmoujahid/blockchain-python-tutorial/blob/master/blockchain_client/blockchain_client.py
-##https://www.tutorialspoint.com/python_blockchain/python_blockchain_tutorial.pdf   σελίδα 12
+        return SHA256.new(json.dumps(self._to_dict()).encode('utf-8')).hexdigest()

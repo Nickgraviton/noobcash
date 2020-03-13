@@ -12,13 +12,16 @@ class Block:
     current_hash: Hash of current block
     """
 
-    def __init__(self, index, list_of_transactions, previous_hash, nonce):
-        self.timestamp = time.time()
+    def __init__(self, index, list_of_transactions, previous_hash, nonce, timestamp=None):
+        if timestamp == None:
+            self.timestamp = time.time()
+        else:
+            self.timestamp = timestamp
         self.index = index
         self.list_of_transactions = list_of_transactions
         self.previous_hash = previous_hash
         self.nonce = nonce
-        self.current_hash = hash()
+        self.current_hash = self.hash()
 
     def to_dict(self):
         return OrderedDict({'timestamp': self.timestamp,

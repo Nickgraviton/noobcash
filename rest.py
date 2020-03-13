@@ -11,21 +11,37 @@ import wallet
 
 app = Flask(__name__)
 CORS(app)
+
+# Create the blockchain and initialize the node
 blockchain = Blockchain()
 node = Node()
 
+#--------------------------------------------------------------------
+#------------------------------REST API------------------------------
+#--------------------------------------------------------------------
 
-#.......................................................................................
+# Special endpoint for receiving the genesis block
+@app.route('/genesis', methods=['POST'])
+def post_genesis():
+    blockchain_dict = request.json
+    blockchain.blocks = blockchain_dict['blocks']
+    blockchain.transactions = blockchain_dict['transactions']
+    blockchain.utxos = blockchain_dict['utxos']
+    return jsonify(''), 200
 
 # New incoming transaction
 @app.route('/transaction', methods=['POST'])
 def post_transaction():
-    return jsonify(response), 200
+    transaction_dict = request.json
+    node.add_transaction(transaction_dict, blockchain)
+    return jsonify(''), 200
 
 # Nonce for new block found
 @app.route('/block', methods=['POST'])
 def post_block():
-    return jsonify(response), 200
+    block_dict = request.json
+    node.valid_proof(block_dict, blockchain)   
+    return jsonify(''), 200
 
 # New member sent his info - Coordinator only
 @app.route('/register', methods=['POST'])
@@ -36,21 +52,26 @@ def register_member():
     public_key = data['public_key']
     
     # Add memeber's info to our dictionary
-    node.register_node_to_network(public_key, member_ip, port)
+    next_id = node.register_node_to_network(public_key, member_ip, port)
 
-    # Send blockchain to member
-    data = blockchain.to_dict()
-    requests.post(f'{member_ip}/block', data)
+    # Send current blockchain to new member
+    requests.post(f'{member_ip}/genesis', blockchain.to_dict())
 
-    # Send 100 NBC to member
+    # Send 100 NBC to new member
     node.broadcast_transaction(node.wallet.public.key, public_key, 100)
 
+    # After all members have registered broadcast the network's details
+    if len(node.network) == node.no_of_nodes:
+        node.broadcast_network_info()
+
+    # Send id back to member that has been registered
     response = {'id': next_id}
     return jsonify(response), 200
 
 # Coordinator sent the list of nodes - Member only
 @app.route('/members', methods=['POST'])
 def post_memebers():
+    node.network = request.json
     return jsonify(response), 200
 
 
@@ -74,14 +95,18 @@ if __name__ == '__main__':
     node_type = args.type
     members = args.members
 
-    # Coordinator code
+    # Coordinator code. Create genesis tranasction and block that don't get validated
     if (node_type.lower().startswith('c')):
+        node.no_of_nodes = members
         node.register_node_to_network(node.wallet.public_key, host, port)
 
         genesis_transaction = Transaction(0, node.wallet.public_key, 100 * members)
+        node.sign_transaction(genesis_transaction)
         genesis_block = Block(0, genesis_transaction, 1, 0)
-        Blockchain.blocks.append(genesis)
-    # Member code
+        blockchain.utxos[node.wallet.public_key] = Transaction_Output(genesis_transaction.id,
+                node.wallet.public_key, genesis_transaction.amount)
+        blockchain.blocks.append(genesis)
+    # Member code. Register self to coordinator and receive network id
     else:
         data = {'port': port, 'public_key': node.wallet.public_key}
         response, status = requests.post(f'{host}:{port}/register', data)

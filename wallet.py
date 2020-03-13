@@ -1,4 +1,3 @@
-import transaction
 from Crypto.PublicKey import RSA
 
 class Wallet:
