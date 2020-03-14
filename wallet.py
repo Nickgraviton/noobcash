@@ -1,3 +1,4 @@
+from Crypto import Random
 from Crypto.PublicKey import RSA
 
 class Wallet:

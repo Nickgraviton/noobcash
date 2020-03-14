@@ -11,14 +11,14 @@ class Blockchain:
            list of transaction output object
     """
 
-    def __init__(self, difficulty, capacity):
+    def __init__(self, difficulty = 4, capacity = 5):
         self.DIFFICULTY = difficulty
         self.CAPACITY = capacity
         self.blocks = []
         self.transactions = []
         self.utxos = {}
 
-    def to_dict():
+    def to_dict(self):
         return OrderedDict({'blocks': self.blocks,
                             'transactions': self.transactions,
-                            'utxos': utxos})
+                            'utxos': self.utxos})

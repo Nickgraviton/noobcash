@@ -1,9 +1,14 @@
-from random import seed
-from random import randint
+from random import seed, randint
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+from Crypto.Signature import pkcs1_15
 import requests
-import block
-import transaction
-import wallet
+import json
+import binascii
+
+from block import Block
+from transaction import Transaction, Transaction_Input, Transaction_Output
+from wallet import Wallet
 
 class Node:
     """
@@ -22,17 +27,18 @@ class Node:
         self.wallet = Wallet()
 
     def register_node_to_network(self, public_key, member_ip, port):
-        next_id = len(network)
-        self.network[public_key: {'ip': member_ip,
-                                  'port': port,
-                                  'id': next_id}]
+        next_id = len(self.network)
+        self.network[public_key] = {'ip': member_ip,
+                                    'port': port,
+                                    'id': next_id}
         return next_id
 
     def broadcast(self, data, endpoint):
         for n, info in self.network:
-            ip = info['ip']
-            port = info['port']
-        requests.post(f'{ip}:{port}/{endpoint}', data)
+            if n != self.wallet.public_key:
+                ip = info['ip']
+                port = info['port']
+                requests.post(f'http://{ip}:{port}/{endpoint}', data)
     
     def broadcast_transaction(self, sender, receiver, amount):
         transaction = Transaction(sender, receiver, amount)
@@ -43,22 +49,22 @@ class Node:
     def broadcast_network_info(self):
         self.broadcast(self.network, 'members')
 
-    def broadcast_block(block):
+    def broadcast_block(self, block):
         data = block.to_dict()
         data['current_hash'] = block.current_hash
         self.broadcast(data, 'block')
 
     def sign_transaction(self, transaction):
-        key = RSA.importKey(self.wallet.private_key.encode())
-        signer = PKCS1_v1_5.new(key)
+        key = RSA.import_key(self.wallet.private_key.encode())
+        signer = pkcs1_15.new(key)
         h = SHA256.new(json.dumps(transaction.id).encode('utf-8'))
         transaction.signature = binascii.hexlify(signer.sign(h)).encode('ascii')
 
     @staticmethod
     def validate_transaction(transaction):
         sender = transaction.sender_address
-        key = RSA.importKey(sender.encode())
-        verifier = PKCS1_v1_5.new(key)
+        key = RSA.import_key(sender.encode())
+        verifier = pkcs1_15.new(key)
         h = SHA256.new(json.dumps(transaction.id).encode('utf-8'))
         return verifier.verify(h,
                 binascii.unhexlify(transaction.signature.decode('ascii')))
@@ -74,9 +80,9 @@ class Node:
         signature = transaction_dict['signature']
         
         # Reconstruct transaction sent to us and validate it
-        transaction = Transaction(sender_adress, recipient_address, amount, timestamp)
+        transaction = Transaction(sender_address, recipient_address, amount, timestamp)
         transaction.signature = signature
-        valid = validate_transaction(transaction)
+        valid = self.validate_transaction(transaction)
 
         if not valid:
             return False
@@ -86,10 +92,10 @@ class Node:
                 return False
 
             temp_sum = 0
-            inputs = []
+            transaction.inputs = []
             utxos_to_be_removed = []
 
-            for utxo in utxos[sender_address]:
+            for utxo in blockchain.utxos[sender_address]:
                 utxos_to_be_removed.append(utxo)
                 transaction.inputs.append(
                         Transaction_Input(utxo.origin_transaction_id))
@@ -98,28 +104,29 @@ class Node:
                     break
 
             for utxo in utxos_to_be_removed:
-                utxos[sender_address].remove(utxo)
+                blockchain.utxos[sender_address].remove(utxo)
 
             # Add output to transaction and update utxos
             transaction_result = Transaction_Output(transaction_id,
                 recipient_address, amount)
             transaction.outputs.append(transaction_result)
-            utxos[recipient_address].append(transaction_result)
+            blockchain.utxos[recipient_address].append(transaction_result)
 
             # Check if we need to give change back to the sender
             if temp_sum > amount:
                 change = Transaction_Output(transaction_id,
                     sender_address, temp_sum - amount)
                 transaction.outputs.append(change)
-                utxos[recipient_address].append(change)
-
+                blockchain.utxos[recipient_address].append(change)
+            
             blockchain.transactions.append(transaction)
 
             if len(blockchain.transactions) == blockchain.CAPACITY:
-                nonce = self.mine_block(blockchain)
+                self.mine_block(blockchain)
 
 
-    def mine_block():
+    @staticmethod
+    def mine_block(blockchain):
         seed(1)
         nonce = randint(0, 4294967295)
         block = Block(blockchain.blocks[-1].index + 1, blockchain.transactions,
@@ -128,14 +135,14 @@ class Node:
             block.nonce = nonce
             block.current_hash = block.hash()
             if block.current_hash.startswith('0' * blockchain.DIFFICULTY):
-                broadcast_block(block)
+                Node.broadcast_block(block)
                 break
-            nonce += 1
+            nonce = (nonce + 1) % 4294967295
 
         blockchain.blocks.append(block)
         blockchain.transactions = []
 
-    def valid_proof(block_dict, blockchain):
+    def valid_proof(self, block_dict, blockchain):
         # Fetch block fields
         timestamp = block_dict['timestamp']
         index = block_dict['index']
@@ -146,25 +153,62 @@ class Node:
 
         # Reconstruct block
         block = Block(index, list_of_transactions, previous_hash, nonce, timestamp)
-        if len(list_of_transactions) != blockchain.DIFFICULTY:
+
+        # Invalid number of transactions in block
+        if len(list_of_transactions) != blockchain.CAPACITY:
             return False
+
         # When we instantiate an object, the current hash is calculated so we compare
-        # it to the one the was sent to us
+        # it to the one that was sent to us
         if not current_hash == block.current_hash:
             return False
+
+        # Invalid nonce
         if not block.current_hash.startswith('0' * blockchain.DIFFICULTY):
             return False
-        if blockchain.blocks[-1].current_hash != previous_hash:
-            # Invalid previous hash
-            # The chain could be longer somewhere so we need to ask
+
+        # Invalid previous hash
+        if blockchain.blocks[-1].current_hash != block.previous_hash:
+            # The new block may have a previous hash equal to the hash of  a block already
+            # in the blockchain. In that case we drop it since it leads to a smaller chain
+            for b in blockchain.blocks[:-1]:
+                if b.current_hash == block.previous_hash:
+                    return False
+            # Otherwise the chain could be longer somewhere so we need to ask
+            self.resolve_conflicts(blockchain)
+            return False
 
         # All previous checks succeeded
+        return True
 
+    def valid_chain(self, blocks, blockchain):
+        # Validate all blocks except for the first one
+        for b in blocks[1:]:
+            valid = self.valid_proof(b.to_dict(), blockchain)
+            if not valid:
+                return False 
+        return True
 
-    def valid_chain(self, chain):
-        #check for the longer chain accroose all nodes
-        pass
+    # Consensus algorithm
+    def resolve_conflicts(self, blockchain):
+        responses = []
+        for n, info in self.network:
+            if n != self.wallet.public_key:
+                ip = info['ip']
+                port = info['port']
+                response = requests.get(f'http://{ip}:{port}/blockchain')
+                responses.append(response)
 
-    def resolve_conflicts(self):
-        #resolve correct chain
-        pass
+        max_chain_length = len(blockchain)
+        for response in responses:
+            blockchain_dict = response
+            blocks = blockchain_dict['blocks']
+            transactions = blockchain_dict['transactions']
+            utxos = blockchain_dict['utxos']
+
+            # Keep the longest chain
+            if len(blocks) > max_chain_length:
+                max_chain_length = len(blocks)
+                blockchain.blocks = blocks
+                blockchain.transactions = transactions
+                blockchain.utxos = utxos

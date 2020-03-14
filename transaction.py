@@ -32,7 +32,7 @@ class Transaction_Output:
                                              'recipient_address': recipient_address,
                                              'amount': amount,
                                              'timestamp': time.time()})
-        self.unique_id = SHA256.new(json.dumps(transaction_dict).encode('utf-8')).hexdigest()
+        self.unique_id = SHA256.new(json.dumps(self.transaction_dict).encode('utf-8')).hexdigest()
         self.transaction_dict['unique_id'] = self.unique_id
     
     def to_dict(self):
