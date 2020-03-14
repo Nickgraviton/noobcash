@@ -1,3 +1,5 @@
+from random import seed
+from random import randint
 import requests
 import block
 import transaction
@@ -36,19 +38,20 @@ class Node:
         transaction = Transaction(sender, receiver, amount)
         self.sign_transaction(transaction)
         data = transaction.to_dict()
-        self.broadcast(data, "transaction")
+        self.broadcast(data, 'transaction')
 
     def broadcast_network_info(self):
-        self.broadcast(self.network, "members")
+        self.broadcast(self.network, 'members')
 
     def broadcast_block(block):
         data = block.to_dict()
-        self.broadcast(data, "block")
+        data['current_hash'] = block.current_hash
+        self.broadcast(data, 'block')
 
     def sign_transaction(self, transaction):
         key = RSA.importKey(self.wallet.private_key.encode())
         signer = PKCS1_v1_5.new(key)
-        h = SHA256.new(json.dumps(transaction.transaction_id).encode('utf-8'))
+        h = SHA256.new(json.dumps(transaction.id).encode('utf-8'))
         transaction.signature = binascii.hexlify(signer.sign(h)).encode('ascii')
 
     @staticmethod
@@ -56,7 +59,7 @@ class Node:
         sender = transaction.sender_address
         key = RSA.importKey(sender.encode())
         verifier = PKCS1_v1_5.new(key)
-        h = SHA256.new(json.dumps(transaction.transaction_id).encode('utf-8'))
+        h = SHA256.new(json.dumps(transaction.id).encode('utf-8'))
         return verifier.verify(h,
                 binascii.unhexlify(transaction.signature.decode('ascii')))
 
@@ -67,7 +70,7 @@ class Node:
         recipient_address = transaction_dict['recipient_address']
         amount = transaction_dict['amount']
         timestamp = transaction_dict['timestamp']
-        transaction_id = transaction_dict['transaction_id']
+        transaction_id = transaction_dict['id']
         signature = transaction_dict['signature']
         
         # Reconstruct transaction sent to us and validate it
@@ -75,19 +78,62 @@ class Node:
         transaction.signature = signature
         valid = validate_transaction(transaction)
 
-        #get utxos and balance of sender, calculate if enough
-        #add inputs and outputs to transaction
-        transactions.append(transaction)
+        if not valid:
+            return False
+        else:
+            balance = Wallet.balance(blockchain, sender_address)
+            if balance < amount:
+                return False
 
-        if len(blockchain.transactions) == blockchain.CAPACITY:
-            nonce = mine_block()
-            block = Block()
-            blockchain.blocks.append(block)
-            broadcast_block(block)
-            blockchain.transactions = []
+            temp_sum = 0
+            inputs = []
+            utxos_to_be_removed = []
+
+            for utxo in utxos[sender_address]:
+                utxos_to_be_removed.append(utxo)
+                transaction.inputs.append(
+                        Transaction_Input(utxo.origin_transaction_id))
+                temp_sum += utxo.amount
+                if temp_sum >= amount:
+                    break
+
+            for utxo in utxos_to_be_removed:
+                utxos[sender_address].remove(utxo)
+
+            # Add output to transaction and update utxos
+            transaction_result = Transaction_Output(transaction_id,
+                recipient_address, amount)
+            transaction.outputs.append(transaction_result)
+            utxos[recipient_address].append(transaction_result)
+
+            # Check if we need to give change back to the sender
+            if temp_sum > amount:
+                change = Transaction_Output(transaction_id,
+                    sender_address, temp_sum - amount)
+                transaction.outputs.append(change)
+                utxos[recipient_address].append(change)
+
+            blockchain.transactions.append(transaction)
+
+            if len(blockchain.transactions) == blockchain.CAPACITY:
+                nonce = self.mine_block(blockchain)
+
 
     def mine_block():
-        pass
+        seed(1)
+        nonce = randint(0, 4294967295)
+        block = Block(blockchain.blocks[-1].index + 1, blockchain.transactions,
+                blockchain.blocks[-1].current_hash, nonce)
+        while True:
+            block.nonce = nonce
+            block.current_hash = block.hash()
+            if block.current_hash.startswith('0' * blockchain.DIFFICULTY):
+                broadcast_block(block)
+                break
+            nonce += 1
+
+        blockchain.blocks.append(block)
+        blockchain.transactions = []
 
     def valid_proof(block_dict, blockchain):
         # Fetch block fields
@@ -96,9 +142,24 @@ class Node:
         list_of_transactions = block_dict['list_of_transactions']
         previous_hash = block_dict['previous_hash']
         nonce = block_dict['nonce']
+        current_hash = block_dict['current_hash']
 
-        # Reconstruct block and check nonce
+        # Reconstruct block
         block = Block(index, list_of_transactions, previous_hash, nonce, timestamp)
+        if len(list_of_transactions) != blockchain.DIFFICULTY:
+            return False
+        # When we instantiate an object, the current hash is calculated so we compare
+        # it to the one the was sent to us
+        if not current_hash == block.current_hash:
+            return False
+        if not block.current_hash.startswith('0' * blockchain.DIFFICULTY):
+            return False
+        if blockchain.blocks[-1].current_hash != previous_hash:
+            # Invalid previous hash
+            # The chain could be longer somewhere so we need to ask
+
+        # All previous checks succeeded
+
 
     def valid_chain(self, chain):
         #check for the longer chain accroose all nodes

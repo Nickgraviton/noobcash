@@ -8,7 +8,7 @@ class Blockchain:
     transactions: Transactions not yet in a block
     utxos: A dictionary of the unspent transactions for each node in the
            network where the key is their public key and the value is a
-           transaction output object
+           list of transaction output object
     """
 
     def __init__(self, difficulty, capacity):

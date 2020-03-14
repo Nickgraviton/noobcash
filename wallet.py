@@ -13,9 +13,9 @@ class Wallet:
 
     @staticmethod
     def balance(blockchain, public_key):
-        transactions = blockchain.utxos[public_key]
+        transaction_outputs = blockchain.utxos[public_key]
         balance = 0
-        for transaction in transactions:
-            if transaction.recipient_address == public_key:
-                balance += transaction.amount
+        for txo in transaction_outputs:
+            if txo.recipient_address == public_key:
+                balance += txo.amount
         return balance

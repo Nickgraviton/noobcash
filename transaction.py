@@ -46,9 +46,9 @@ class Transaction:
     amount: Amount to be transferred
     timestamp: Timestamp of transaction. If provided we used the given value
                else we get the current timestamp
-    transaction_id: Unique hash of transaction
-    transaction_inputs: List of Transaction Input Objects
-    transaction_outputs: List of Transaction Output Objects
+    id: Unique hash of transaction
+    inputs: List of Transaction Input Objects
+    outputs: List of Transaction Output Objects
     signature: Signature of transaction
     """
 
@@ -60,20 +60,22 @@ class Transaction:
             self.timestamp = time.time()
         else:
             self.timestamp = timestamp
-        self.transaction_id = self.hash()
-        self.transaction_inputs = []
-        self.transaction_outputs = []
+        self.id = self.hash()
+        self.inputs = []
+        self.outputs = []
         self.signature = None
 
+    # Function used to create a dictionary to sign the transaction
     def _to_dict(self):
         return OrderedDict({'sender_address': self.sender_address,
                             'recipient_address': self.recipient_address,
                             'amount': self.amount,
                             'timestamp': self.timestamp})
 
+    # Function used to create a dictionary of a transaction to be sent
     def to_dict(self):
         info = self._to_dict()
-        info['transaction_id'] = self.transaction_id
+        info['id'] = self.id
         info['signature'] = self.signature
         return info
 
