@@ -60,7 +60,9 @@ def post_block():
     if valid:
         block = Block.from_dict(block_dict)
         blockchain.blocks.append(block)
-    return jsonify(''), 200
+        return jsonify(''), 200
+    else:
+        return jsonify('invalid block'), 400
 
 # Endpoint for the coordinator where members send us their info
 @app.route('/register', methods=['POST'])

@@ -5,7 +5,6 @@ from Crypto.Signature import pkcs1_15
 import requests
 import json
 import base64
-import binascii
 
 from block import Block
 from blockchain import Blockchain
@@ -109,14 +108,20 @@ class Node:
             transaction_result = Transaction_Output(transaction.transaction_id,
                 transaction.recipient_address, transaction.amount)
             transaction.outputs.append(transaction_result)
-            blockchain.utxos[transaction.recipient_address].append(transaction_result)
+
+            if transaction.recipient_address in blockchain.utxos:
+                blockchain.utxos[transaction.recipient_address].append(transaction_result)
+            else:
+                blockchain.utxos[transaction.recipient_address] = []
+                blockchain.utxos[transaction.recipient_address].append(transaction_result)
+
 
             # Check if we need to give change back to the sender
             if temp_sum > transaction.amount:
                 change = Transaction_Output(transaction.transaction_id,
                     transaction.sender_address, temp_sum - transaction.amount)
                 transaction.outputs.append(change)
-                blockchain.utxos[transaction.recipient_address].append(change)
+                blockchain.utxos[transaction.sender_address].append(change)
             
             blockchain.transactions.append(transaction)
 
