@@ -4,6 +4,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 import requests
 import json
+import base64
 import binascii
 
 from block import Block
@@ -58,18 +59,25 @@ class Node:
     def sign_transaction(self, transaction):
         key = RSA.import_key(self.wallet.private_key.encode())
         signer = pkcs1_15.new(key)
-        h = SHA256.new(json.dumps(transaction.id).encode('utf-8'))
-        transaction.signature = binascii.hexlify(signer.sign(h)).decode('utf-8')
+
+        h = SHA256.new(json.dumps(transaction.to_dict_()).encode('utf-8'))
+        # Encode in base64 so that it is compatible with the format json expects
+        transaction.signature = base64.b64encode(signer.sign(h)).decode('utf-8')
 
     @staticmethod
     def validate_transaction(transaction):
         sender = transaction.sender_address
         key = RSA.import_key(sender.encode())
         verifier = pkcs1_15.new(key)
-        h = SHA256.new(json.dumps(transaction.id).encode('utf-8'))
-        return verifier.verify(h,
-                binascii.unhexlify(transaction.signature.encode('utf-8')))
 
+        h = SHA256.new(json.dumps(transaction.to_dict_()).encode('utf-8'))
+        # Verify function raises ValueError if signature is not valid
+        try:
+            verifier.verify(h,
+                base64.b64decode(transaction.signature))
+            return True
+        except ValueError:
+            return False
 
     def add_transaction(self, transaction_dict, blockchain):
         # Reconstruct transaction sent to us and validate it

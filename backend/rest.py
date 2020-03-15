@@ -29,7 +29,6 @@ def get_blockchain():
 @app.route('/blockchain', methods=['POST'])
 def post_blockchain():
     blockchain_dict = request.get_json()
-    print(blockchain_dict)
     peer_blockchain = Blockchain.from_dict(blockchain_dict)
 
     # Empty blockchain in our node so far which means the coordinator
@@ -47,8 +46,11 @@ def post_blockchain():
 @app.route('/transaction', methods=['POST'])
 def post_transaction():
     transaction_dict = request.get_json()
-    node.add_transaction(transaction_dict, blockchain)
-    return jsonify(''), 200
+    success = node.add_transaction(transaction_dict, blockchain)
+    if success:
+        return jsonify(''), 200
+    else:
+        return jsonify('invalid transaction'), 400
 
 # Endpoint where other members send us the blocks they have mined
 @app.route('/block', methods=['POST'])
@@ -108,7 +110,6 @@ def post_init_coordinator():
     blockchain.utxos[node.wallet.public_key].append(
             Transaction_Output(genesis_transaction.id, node.wallet.public_key, genesis_transaction.amount))
 
-    print("genesis blockchain", blockchain.to_dict())
     blockchain.blocks.append(genesis_block)
 
     return jsonify(''), 200

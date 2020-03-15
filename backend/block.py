@@ -1,6 +1,5 @@
 import time
 import json
-import base64
 from collections import OrderedDict
 from Crypto.Hash import SHA256
 
