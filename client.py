@@ -14,8 +14,15 @@ port = args.port
 node_type = args.type
 members = args.members
 
+backend_url = f'http://127.0.0.1:{port}/'
+
+# Initialize backend by creating the genesis block or connecting to the coordinator
 if (node_type.lower().startswith('c')):
     data = {'members': members} 
-    requests.post(f'http://127.0.0.1:{port}/initialize/coordinator', json=data)
+    requests.post(backend_url + 'initialize/coordinator', json=data)
 else:
-    requests.get(f'http://127.0.0.1:{port}/initialize/member')
+    requests.get(backend_url + 'initialize/member')
+
+prompt = Prompt(backend_url)
+prompt.prompt = '> '
+prompt.cmdloop()

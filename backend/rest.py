@@ -20,10 +20,18 @@ node = Node()
 #------------------------------REST API------------------------------
 #--------------------------------------------------------------------
 
+# Endpoint where the client can ask for the wallet's balance
+@app.rout('/balance', methods=['GET'])
+def get_balance():
+    balance = node.wallet.balance(blockchain, node.wallet.public_key)
+    response = {'balance': balance}
+    return jsonify(response), 200
+
 # Endpoint where other members can request our blockchain
 @app.route('/blockchain', methods=['GET'])
 def get_blockchain():
-    return jsonify(blockchain.to_dict()), 200
+    blockchain_dict = blockchain.to_dict()
+    return jsonify(blockchain_dict), 200
 
 # Endpoint where other members can send us their blockchain
 @app.route('/blockchain', methods=['POST'])
@@ -43,14 +51,33 @@ def post_blockchain():
     return jsonify(''), 200
 
 # Endpoint where other members send us transactions
-@app.route('/transaction', methods=['POST'])
-def post_transaction():
+@app.route('/transaction/remote', methods=['POST'])
+def post_transaction_remote():
     transaction_dict = request.get_json()
     success = node.add_transaction(transaction_dict, blockchain)
     if success:
         return jsonify(''), 200
     else:
         return jsonify('invalid transaction'), 400
+
+# Endpoint where the local client can send us transactions to broadcast
+@app.route('/transaction/local', methods=['POST'])
+def post_transaction_local():
+    transaction_dict = request.get_json()
+    recipient_address = transaction_dict['recipient_address']
+    amount = transaction_dict['amount']
+
+    success = create_transaction(self.wallet.public_key, recipient_address, amount)
+    if success:
+        return jsonify('transaction successful'), 200
+    else:
+        return jsonify('transaction unsuccessful'), 400
+
+# Endpoint where the client can request the latest validated block
+@app.route('/block', methods=['GET'])
+def get_block():
+    block_dict = blockchain.blocks[-1].to_dict()
+    return jsonify(block_dict), 200
 
 # Endpoint where other members send us the blocks they have mined
 @app.route('/block', methods=['POST'])

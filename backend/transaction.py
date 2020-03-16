@@ -56,15 +56,15 @@ class Transaction:
     """
 
     def __init__(self, sender_address, recipient_address, amount,
-            timestamp=None, id_=None, signature=None):
+            timestamp=None, id_=None, signature=None, inputs=None):
 
         self.sender_address = sender_address
         self.recipient_address = recipient_address
         self.amount = amount
         self.timestamp = time.time() if timestamp is None else timestamp
-        self.id = self.hash() if id_ is None else id_
+        self.id_ = self.hash() if id_ is None else id_
         self.signature = signature
-        self.inputs = []
+        self.inputs = [] if inputs is None else inputs
         self.outputs = []
 
     # Function used to create a dictionary to sign the transaction
@@ -77,8 +77,9 @@ class Transaction:
     # Function used to create a dictionary of a transaction to be sent
     def to_dict(self):
         info = self.to_dict_()
-        info['id_'] = self.id
+        info['id_'] = self.id_
         info['signature'] = self.signature
+        info['inputs'] = self.inputs
         return info
 
     # Restore Transaction after it's been sent to us with the to_dict function
