@@ -1,5 +1,6 @@
 import requests
 from argparse import ArgumentParser
+from prompt import Prompt
 
 parser = ArgumentParser()
 parser.add_argument('-p', '--port', default=5000, type=int,
@@ -19,9 +20,15 @@ backend_url = f'http://127.0.0.1:{port}/'
 # Initialize backend by creating the genesis block or connecting to the coordinator
 if (node_type.lower().startswith('c')):
     data = {'members': members} 
-    requests.post(backend_url + 'initialize/coordinator', json=data)
+    response = requests.post(backend_url + 'initialize/coordinator', json=data)
+    if response.status_code != 200:
+        print('Coordinator initialization failed')
+        raise SystemExit
 else:
-    requests.get(backend_url + 'initialize/member')
+    response = requests.get(backend_url + 'initialize/member')
+    if response.status_code != 200:
+        print('Member initialization failed')
+        raise SystemExit
 
 prompt = Prompt(backend_url)
 prompt.prompt = '> '

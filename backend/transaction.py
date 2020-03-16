@@ -49,7 +49,7 @@ class Transaction:
     amount: Amount to be transferred
     timestamp: Timestamp of transaction. If provided we use the given value
                else we get the current timestamp
-    id: Unique hash of transaction
+    id_: Unique hash of transaction
     inputs: List of transaction input ids
     outputs: List of Transaction Output Objects
     signature: Signature of transaction

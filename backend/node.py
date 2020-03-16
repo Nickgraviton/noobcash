@@ -14,7 +14,7 @@ from wallet import Wallet
 
 class Node:
     """
-    id: Id of node
+    id_: Id of node
     no_of_nodes: number of nodes in the network
     network: Dictionary of the network's participant where the key
              is the puplic key and the value is a dictionary
@@ -23,7 +23,7 @@ class Node:
     """
 
     def __init__(self):
-        self.id = 0
+        self.id_ = 0
         self.no_of_nodes = None
         self.network = {}
         self.wallet = Wallet()
@@ -32,7 +32,7 @@ class Node:
         next_id = len(self.network)
         self.network[public_key] = {'ip': member_ip,
                                     'port': port,
-                                    'id': next_id}
+                                    'id_': next_id}
         return next_id
 
     def broadcast(self, data, endpoint):
@@ -44,7 +44,7 @@ class Node:
     
     def broadcast_transaction(self, transaction):
         data = transaction.to_dict()
-        self.broadcast(data, 'transaction')
+        self.broadcast(data, 'transaction/remote')
 
     def broadcast_network_info(self):
         self.broadcast(self.network, 'members')
@@ -70,15 +70,14 @@ class Node:
         h = SHA256.new(json.dumps(transaction.to_dict_()).encode('utf-8'))
         # Verify function raises ValueError if signature is not valid
         try:
-            verifier.verify(h,
-                base64.b64decode(transaction.signature))
+            verifier.verify(h, base64.b64decode(transaction.signature))
             return True
         except ValueError:
             return False
 
     # Function to create and broadcast new transaction
-    def create_transaction(self, sender_address, recipient_address, amount):
-        transaction = Transaction(sender_address, recipient_address, amount)
+    def create_transaction(self, recipient_address, amount, blockchain):
+        transaction = Transaction(self.wallet.public_key, recipient_address, amount)
         self.sign_transaction(transaction)
 
         balance = Wallet.balance(blockchain, transaction.sender_address)
@@ -100,7 +99,7 @@ class Node:
             blockchain.utxos[transaction.sender_address].remove(utxo)
 
         # Add output to transaction and update utxos
-        transaction_result = Transaction_Output(transaction.transaction_id,
+        transaction_result = Transaction_Output(transaction.id_,
             transaction.recipient_address, transaction.amount)
         transaction.outputs.append(transaction_result)
 
@@ -110,10 +109,9 @@ class Node:
             blockchain.utxos[transaction.recipient_address] = []
             blockchain.utxos[transaction.recipient_address].append(transaction_result)
 
-
         # Check if we need to give change back to the sender
         if temp_sum > transaction.amount:
-            change = Transaction_Output(transaction.transaction_id,
+            change = Transaction_Output(transaction.id_,
                 transaction.sender_address, temp_sum - transaction.amount)
             transaction.outputs.append(change)
             blockchain.utxos[transaction.sender_address].append(change)
@@ -159,7 +157,7 @@ class Node:
                 blockchain.utxos[transaction.sender_address].remove(utxo)
 
             # Add output to transaction and update utxos
-            transaction_result = Transaction_Output(transaction.transaction_id,
+            transaction_result = Transaction_Output(transaction.id_,
                 transaction.recipient_address, transaction.amount)
             transaction.outputs.append(transaction_result)
 
@@ -172,7 +170,7 @@ class Node:
 
             # Check if we need to give change back to the sender
             if temp_sum > transaction.amount:
-                change = Transaction_Output(transaction.transaction_id,
+                change = Transaction_Output(transaction.id_,
                     transaction.sender_address, temp_sum - transaction.amount)
                 transaction.outputs.append(change)
                 blockchain.utxos[transaction.sender_address].append(change)
@@ -184,9 +182,7 @@ class Node:
 
             return True
 
-
-    @staticmethod
-    def mine_block(blockchain):
+    def mine_block(self, blockchain):
         nonce = random.randint(0, 4294967295)
         block = Block(blockchain.blocks[-1].index + 1, blockchain.transactions,
                 blockchain.blocks[-1].current_hash, nonce)
@@ -194,27 +190,25 @@ class Node:
             block.nonce = nonce
             block.current_hash = block.hash()
             if block.current_hash.startswith('0' * DIFFICULTY):
-                Node.broadcast_block(block)
+                self.broadcast_block(block)
                 break
             nonce = (nonce + 1) % 4294967295
 
         blockchain.blocks.append(block)
         blockchain.transactions = []
 
-    def valid_proof(self, block_dict, blockchain, previous_hash=None):
-        block = Block.from_dict(block_dict)
-
+    def valid_proof(self, block, blockchain, previous_hash=None):
         # Invalid number of transactions in block
         if len(block.list_of_transactions) != CAPACITY:
-            return False
+            return 'block does not have capacity transactions'
 
         # Check if valid hash
         if  block.hash() != block.current_hash:
-            return False
+            return 'hashes do not match'
 
         # Invalid nonce
         if not block.current_hash.startswith('0' * DIFFICULTY):
-            return False
+            return 'invalid nonce'
 
         # New block was found so we check if it can be added to the end of our blockchain
         if previous_hash is None:
@@ -224,23 +218,23 @@ class Node:
                 # in the blockchain. In that case we drop it since it leads to a smaller chain
                 for b in blockchain.blocks[:-1]:
                     if b.current_hash == block.previous_hash:
-                        return False
+                        return 'dropped block since it leads to smaller chain'
                 # Otherwise the chain could be longer somewhere so we need to ask
                 self.resolve_conflicts(blockchain)
-                return False
+                return 'resolved conflict'
         # We check if an existing block's previous hash is equal to the the previous block's hash
         else:
             if previous_hash != block.previous_hash:
-                return False
+                return 'hashes do not match'
 
         # All previous checks succeeded
-        return True
+        return 'success'
 
     def valid_chain(self, blockchain):
         # Validate all blocks except for the first one
         for i, b in enumerate(blockchain.blocks[:-1]):
             # Send the current block along with the hash of its previous block
-            valid = self.valid_proof(blockchain.blocks[i+1].to_dict(), blockchain,
+            valid = self.valid_proof(blockchain.blocks[i+1], blockchain,
                     blockchain.blocks[i])
             if not valid:
                 return False 

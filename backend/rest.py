@@ -21,7 +21,7 @@ node = Node()
 #--------------------------------------------------------------------
 
 # Endpoint where the client can ask for the wallet's balance
-@app.rout('/balance', methods=['GET'])
+@app.route('/balance', methods=['GET'])
 def get_balance():
     balance = node.wallet.balance(blockchain, node.wallet.public_key)
     response = {'balance': balance}
@@ -67,7 +67,7 @@ def post_transaction_local():
     recipient_address = transaction_dict['recipient_address']
     amount = transaction_dict['amount']
 
-    success = create_transaction(self.wallet.public_key, recipient_address, amount)
+    success = node.create_transaction(recipient_address, amount, blockchain)
     if success:
         return jsonify('transaction successful'), 200
     else:
@@ -76,20 +76,22 @@ def post_transaction_local():
 # Endpoint where the client can request the latest validated block
 @app.route('/block', methods=['GET'])
 def get_block():
-    block_dict = blockchain.blocks[-1].to_dict()
-    return jsonify(block_dict), 200
+    last_block = blockchain.blocks[-1]
+    list_of_transactions = [t.to_dict() for t in last_block.list_of_transactions]
+    transaction_dict = {'list_of_transactions': list_of_transactions}
+    return jsonify(transaction_dict), 200
 
 # Endpoint where other members send us the blocks they have mined
 @app.route('/block', methods=['POST'])
 def post_block():
     block_dict = request.get_json()
-    valid = node.valid_proof(block_dict, blockchain)   
-    if valid:
-        block = Block.from_dict(block_dict)
+    block = Block.from_dict(block_dict)
+    status = node.valid_proof(block, blockchain)
+    if 'success':
         blockchain.blocks.append(block)
-        return jsonify(''), 200
+        return jsonify(status), 200
     else:
-        return jsonify('invalid block'), 400
+        return jsonify(status), 400
 
 # Endpoint for the coordinator where members send us their info
 @app.route('/register', methods=['POST'])
@@ -107,14 +109,14 @@ def register_member():
     requests.post(f'http://{member_ip}:{port}/blockchain', json=blockchain.to_dict())
 
     # Send 100 NBC to new member
-    node.broadcast_transaction(node.wallet.public_key, public_key, 100)
+    node.create_transaction(public_key, 100, blockchain)
 
     # After all members have registered broadcast the network's details
     if len(node.network) == node.no_of_nodes:
         node.broadcast_network_info()
 
     # Send id back to member that has been registered
-    response = {'id': next_id}
+    response = {'id_': next_id}
     return jsonify(response), 200
 
 # Endpoint for the members where the coordinator sends us the network info
@@ -137,7 +139,7 @@ def post_init_coordinator():
     genesis_block = Block(0, list_of_transactions, 1, 0)
     blockchain.utxos[node.wallet.public_key] = []
     blockchain.utxos[node.wallet.public_key].append(
-            Transaction_Output(genesis_transaction.id, node.wallet.public_key, genesis_transaction.amount))
+            Transaction_Output(genesis_transaction.id_, node.wallet.public_key, genesis_transaction.amount))
 
     blockchain.blocks.append(genesis_block)
 
@@ -148,8 +150,8 @@ def post_init_coordinator():
 def post_init_member():
     data = {'port': FLASK_PORT, 'public_key': node.wallet.public_key}
     response = requests.post(f'http://{COORDINATOR_IP}:{COORDINATOR_PORT}/register', json=data)
-    node.id = response.json()['id']
-    return jsonify(''), 200
+    node.id_ = response.json()['id_']
+    return jsonify(''), response.status_code
 
 # Run it once fore every node
 if __name__ == '__main__':

@@ -1,10 +1,10 @@
 import requests
-from backend.block import Block
 from cmd import Cmd
 
 class Prompt(Cmd):
 
     def __init__(self, backend_url):
+        super().__init__()
         self.backend_url = backend_url
 
     def do_t(self, args):
@@ -17,24 +17,24 @@ class Prompt(Cmd):
         amount = int(args[1])
         dictionary = {'recipient_address': recipient_address,
                       'amount': amount}
-        response = requests.post(self.backend_url + 'transaction/local')
+        response = requests.post(self.backend_url + 'transaction/local', json=dictionary)
         status = response.json()['status']
         print('Transaction status:', status)
 
     def do_view(self, args):
         """Fetch the latest valid block's transactions"""
         response = requests.get(self.backend_url + 'block')
-        block_dict = response.json()
-        block = Block.from_dict(block_dict)
+        list_of_transactions = response.json()['list_of_transactions']
 
         print('Transactions:')
-        for transaction in block.list_of_transactions:
-            print('Transaction: From ->', transaction.sender_address,
-                  '\nTo ->', transaction.recipient_address,
-                  '\nAmount->', transaction.amount, '\n')
+        for transaction in list_of_transactions:
+            print('Transaction: From ->\n', transaction['sender_address'],
+                  '\nTo ->\n', transaction['recipient_address'],
+                  '\nAmount-> ', transaction['amount'], '\n', sep='')
 
 
     def do_balance(self, args):
+        """Returns the balance of wallet"""
         response = requests.get(self.backend_url + 'balance')
         balance = response.json()['balance']
         print('Current wallet balance is:', balance, 'NBC')
