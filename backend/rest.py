@@ -70,7 +70,7 @@ def post_transaction_local():
         recipient_address = transaction_dict['recipient_address']
     else:
         recipient_id = transaction_dict['recipient_id']
-        for n, info in self.network.items():
+        for n, info in node.network.items():
             if info['id_'] == recipient_id:
                 recipient_address = n
 
@@ -78,9 +78,9 @@ def post_transaction_local():
 
     success = node.create_transaction(recipient_address, amount, blockchain)
     if success:
-        return jsonify('transaction successful'), 200
+        return jsonify({'status': 'transaction successful'}), 200
     else:
-        return jsonify('transaction unsuccessful'), 400
+        return jsonify({'status': 'transaction unsuccessful'}), 400
 
 # Endpoint where the client can request the latest validated block
 @app.route('/block', methods=['GET'])
