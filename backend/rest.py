@@ -65,6 +65,7 @@ def post_transaction_remote():
 def post_transaction_local():
     transaction_dict = request.get_json()
 
+    recipient_address = None
     # Support both id and address of recipient
     if 'recipient_address' in transaction_dict:
         recipient_address = transaction_dict['recipient_address']
@@ -73,6 +74,8 @@ def post_transaction_local():
         for n, info in node.network.items():
             if info['id_'] == recipient_id:
                 recipient_address = n
+    if recipient_address is None:
+        return jsonify({'status': 'fatal error'}), 400
 
     amount = transaction_dict['amount']
 
@@ -160,7 +163,9 @@ def post_init_member():
     data = {'port': FLASK_PORT, 'public_key': node.wallet.public_key}
     response = requests.post(f'http://{COORDINATOR_IP}:{COORDINATOR_PORT}/register', json=data)
     node.id_ = response.json()['id_']
-    return jsonify(''), response.status_code
+
+    info = {'id_': node.id_}
+    return jsonify(info), response.status_code
 
 # Run it once fore every node
 if __name__ == '__main__':

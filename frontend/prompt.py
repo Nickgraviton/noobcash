@@ -14,8 +14,7 @@ class Prompt(Cmd):
             print('Usage: t <recipient_id> <amount>')
             return
         
-        # Input id is of the form `id0`
-        recipient_id = int(tokens[0][2])
+        recipient_id = int(tokens[0])
         amount = int(tokens[1])
         dictionary = {'recipient_id': recipient_id,
                       'amount': amount}

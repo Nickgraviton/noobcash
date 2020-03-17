@@ -43,3 +43,5 @@ Simple blockchain implementation in python
 5. Run `client.py` on one node as a coordinator: `python3 frontend/client.py -p <local_flask_port> -t coordinator -m <number_of_members_in_the_network>`
 6. Run `client.py` on all other nodes as members: `python3 frontend/client.py -p <local_flask_port>`
 7. Issue commands on the client CLI.
+
+Optionally if a `-f <file>` argument is provided in `client.py`, then the transactions specified in the file are sent to the network
