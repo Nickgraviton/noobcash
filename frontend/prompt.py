@@ -8,14 +8,15 @@ class Prompt(Cmd):
         self.backend_url = backend_url
 
     def do_t(self, args):
-        """t <recipient_address> <amount>\nSends <amount> NBC to the <recipient_address>"""
+        """t <recipient_id> <amount>\nSends <amount> NBC to the <recipient_id>"""
         if len(args) != 2:
-            print('Usage: t <recipient_address> <amount>')
+            print('Usage: t <recipient_id> <amount>')
             return
-
-        recipient_address = args[0]
+        
+        # Input id is of the form `id0`
+        recipient_id = int(args[0][2])
         amount = int(args[1])
-        dictionary = {'recipient_address': recipient_address,
+        dictionary = {'recipient_id': recipient_id,
                       'amount': amount}
         response = requests.post(self.backend_url + 'transaction/local', json=dictionary)
         status = response.json()['status']

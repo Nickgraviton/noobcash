@@ -64,7 +64,16 @@ def post_transaction_remote():
 @app.route('/transaction/local', methods=['POST'])
 def post_transaction_local():
     transaction_dict = request.get_json()
-    recipient_address = transaction_dict['recipient_address']
+
+    # Support both id and address of recipient
+    if 'recipient_address' in transaction_dict:
+        recipient_address = transaction_dict['recipient_address']
+    else:
+        recipient_id = transaction_dict['recipient_id']
+        for n, info in self.network.items():
+            if info['id_'] == recipient_id:
+                recipient_address = n
+
     amount = transaction_dict['amount']
 
     success = node.create_transaction(recipient_address, amount, blockchain)
