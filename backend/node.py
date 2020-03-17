@@ -77,6 +77,9 @@ class Node:
 
     # Function to create and broadcast new transaction
     def create_transaction(self, recipient_address, amount, blockchain):
+        if recipient_address == self.wallet.public_key or amount <= 0:
+            return False
+
         transaction = Transaction(self.wallet.public_key, recipient_address, amount)
         self.sign_transaction(transaction)
 
