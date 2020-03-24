@@ -10,7 +10,7 @@ Simple blockchain implementation in python
 │   ├── rest.py
 │   ├── transaction.py
 │   └── wallet.py
-├── frontend
+├── client
 │   ├── client.py
 │   └── prompt.py
 ├── README.md
@@ -24,7 +24,7 @@ Simple blockchain implementation in python
 * `rest.py:` Specifies a REST API running with Flask and defines the endpoints where the nodes will exchange data.
 * `transaction.py:` Specifies the Transaction class that holds the tranasaction details like the sender address, the recipient address, the amount of the transaction, the hash of the transaction, its inputs and its outputs and the Transaction Output class that holds information about the output of a transaction.
 * `wallet.py:` Speicifies a Wallet class that holds the private and public key of the wallet using the RSA algorithm to generate those keys.
-##### Front end:
+##### Client:
 * `client.py:` This class is responsible for handling user requests and initializing the blockchain after the Flask server has started.
 * `prompt.py:` This class provides a CLI supporting a few user operations specifically:
     * `t <recipient_address> <amount>:` Sends amount Noobcash Coins(NBC) to the recipient address
@@ -40,8 +40,8 @@ Simple blockchain implementation in python
 2. Activate the virtual environment: `source .venv/bin/activate`
 3. Install the requirements: `pip3 install -r requirements.txt`
 4. Run the flask server on each node: `python3 backend/rest.py -p <local_flask_port>`
-5. Run `client.py` on one node as a coordinator: `python3 frontend/client.py -p <local_flask_port> -t coordinator -m <number_of_members_in_the_network>`
-6. Run `client.py` on all other nodes as members: `python3 frontend/client.py -p <local_flask_port>`
+5. Run `client.py` on one node as a coordinator: `python3 client/client.py -p <local_flask_port> -t coordinator -m <number_of_members_in_the_network>`
+6. Run `client.py` on all other nodes as members: `python3 client/client.py -p <local_flask_port>`
 7. Issue commands on the client CLI.
 
 Optionally if a `-f <file>` argument is provided in `client.py`, then the transactions specified in the file are sent to the network
