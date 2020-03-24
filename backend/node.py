@@ -128,8 +128,9 @@ class Node:
                 transaction.outputs.append(change)
                 blockchain.utxos[transaction.sender_address].append(change)
             
-            self.broadcast_transaction(transaction)
             blockchain.transactions.append(transaction)
+
+        self.broadcast_transaction(transaction)
 
         if len(blockchain.transactions) == CAPACITY:
             self.mine_event.set()
@@ -244,8 +245,8 @@ class Node:
                             continue
                     for transaction in block.list_of_transactions:
                         blockchain.transactions_set.add(transaction.id_)
-                    self.broadcast_block(block)
                     blockchain.blocks.append(block)
+                self.broadcast_block(block)
 
             else:
                 with blockchain.lock:

@@ -3,9 +3,10 @@ from cmd import Cmd
 
 class Prompt(Cmd):
 
-    def __init__(self, backend_url):
+    def __init__(self, backend_url, my_id):
         super().__init__()
         self.backend_url = backend_url
+        self.my_id = my_id
 
     def do_t(self, line):
         """t <recipient_id> <amount>\nSends <amount> NBC to the <recipient_id>"""
@@ -55,6 +56,21 @@ class Prompt(Cmd):
         response = requests.get(self.backend_url + 'balance')
         balance = response.json()['balance']
         print('Current wallet balance is:', balance, 'NBC')
+
+    def do_transactions(self, line):
+        """Executes the transactions in the given folder using the local id
+        Usage: transactions <transactions_folder>
+        The input file used inside the folder is of the format `transactions<id>.txt`"""
+        input_file = line + '/transactions' + str(self.my_id) + '.txt'
+        with open(input_file, 'r') as f:
+            for line in f:
+                tokens = line.split()
+                recipient_id = int(tokens[0][2])
+                amount = int(tokens[1])
+                dictionary = {'recipient_id': recipient_id,
+                              'amount': amount}
+                requests.post(self.backend_url + 'transaction/local', json=dictionary)
+
 
     def do_quit(self, line):
         """Quits the program"""
