@@ -44,7 +44,7 @@ if file_ != '':
             amount = int(tokens[1])
             dictionary = {'recipient_id': recipient_id,
                           'amount': amount}
-            requests.post(self.backend_url + 'transaction/local', json=dictionary)
+            requests.post(backend_url + 'transaction/local', json=dictionary)
 
 prompt = Prompt(backend_url)
 prompt.prompt = '> '

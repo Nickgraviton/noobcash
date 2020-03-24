@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import threading
 
 from block import Block
 from transaction import Transaction, Transaction_Output
@@ -16,6 +17,8 @@ class Blockchain:
         self.blocks = blocks
         self.transactions = transactions
         self.utxos = utxos
+        self.transactions_set = set()
+        self.lock = threading.Lock()
 
     # Sendable form of the object
     def to_dict(self):

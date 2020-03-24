@@ -5,6 +5,8 @@ from Crypto.Signature import pkcs1_15
 import requests
 import json
 import base64
+import copy
+import threading
 
 from block import Block
 from blockchain import Blockchain
@@ -20,6 +22,9 @@ class Node:
              is the puplic key and the value is a dictionary
              with the ip, port and id of each participant
     wallet: Wallet containing the public and private key
+    miner: The thread running the miner so that mining doesn't
+           block the application
+    mine_event: Event we set to signal to the miner that he can mine
     """
 
     def __init__(self):
@@ -27,6 +32,8 @@ class Node:
         self.no_of_nodes = None
         self.network = {}
         self.wallet = Wallet()
+        self.miner = None
+        self.mine_event = threading.Event()
 
     def register_node_to_network(self, public_key, member_ip, port):
         next_id = len(self.network)
@@ -90,7 +97,8 @@ class Node:
         temp_sum = 0
         transaction.inputs = []
         utxos_to_be_removed = []
-
+        
+        # Find which inputs need to be used for the transaction
         for utxo in blockchain.utxos[transaction.sender_address]:
             utxos_to_be_removed.append(utxo)
             transaction.inputs.append(utxo.origin_transaction_id)
@@ -98,64 +106,66 @@ class Node:
             if temp_sum >= transaction.amount:
                 break
 
-        for utxo in utxos_to_be_removed:
-            blockchain.utxos[transaction.sender_address].remove(utxo)
+        with blockchain.lock:
+            for utxo in utxos_to_be_removed:
+                blockchain.utxos[transaction.sender_address].remove(utxo)
 
-        # Add output to transaction and update utxos
-        transaction_result = Transaction_Output(transaction.id_,
-            transaction.recipient_address, transaction.amount)
-        transaction.outputs.append(transaction_result)
+            # Add output to transaction and update utxos
+            transaction_result = Transaction_Output(transaction.id_,
+                transaction.recipient_address, transaction.amount)
+            transaction.outputs.append(transaction_result)
 
-        if transaction.recipient_address in blockchain.utxos:
-            blockchain.utxos[transaction.recipient_address].append(transaction_result)
-        else:
-            blockchain.utxos[transaction.recipient_address] = []
-            blockchain.utxos[transaction.recipient_address].append(transaction_result)
+            if transaction.recipient_address in blockchain.utxos:
+                blockchain.utxos[transaction.recipient_address].append(transaction_result)
+            else:
+                blockchain.utxos[transaction.recipient_address] = []
+                blockchain.utxos[transaction.recipient_address].append(transaction_result)
 
-        # Check if we need to give change back to the sender
-        if temp_sum > transaction.amount:
-            change = Transaction_Output(transaction.id_,
-                transaction.sender_address, temp_sum - transaction.amount)
-            transaction.outputs.append(change)
-            blockchain.utxos[transaction.sender_address].append(change)
-        
-        self.broadcast_transaction(transaction)
-        blockchain.transactions.append(transaction)
+            # Check if we need to give change back to the sender
+            if temp_sum > transaction.amount:
+                change = Transaction_Output(transaction.id_,
+                    transaction.sender_address, temp_sum - transaction.amount)
+                transaction.outputs.append(change)
+                blockchain.utxos[transaction.sender_address].append(change)
+            
+            self.broadcast_transaction(transaction)
+            blockchain.transactions.append(transaction)
 
         if len(blockchain.transactions) == CAPACITY:
-            self.mine_block(blockchain)
+            self.mine_event.set()
 
         return True
 
     # Function to check transaction sent to us
-    def add_transaction(self, transaction_dict, blockchain):
+    def add_transaction(self, transaction_dict, blockchain, part_of_block=False):
         # Reconstruct transaction sent to us and validate it
         transaction  = Transaction.from_dict(transaction_dict)
         valid = self.validate_transaction(transaction)
 
         if not valid:
             return False
-        else:
-            temp_sum = 0
-            utxos_to_be_removed = []
 
-            # We check if all the transaction inputs sent to us are correct
-            for transaction_input in transaction.inputs:
-                correct_input = False
-                for utxo in blockchain.utxos[transaction.sender_address]:
-                    if transaction_input == utxo.origin_transaction_id:
-                        correct_input = True
-                        utxos_to_be_removed.append(utxo)
-                        temp_sum += utxo.amount
+        temp_sum = 0
+        utxos_to_be_removed = []
 
-                # Transaction input was not found in the utxo list
-                if not correct_input:
-                    return False
+        # We check if all the transaction inputs sent to us are correct
+        for transaction_input in transaction.inputs:
+            correct_input = False
+            for utxo in blockchain.utxos[transaction.sender_address]:
+                if transaction_input == utxo.origin_transaction_id:
+                    correct_input = True
+                    utxos_to_be_removed.append(utxo)
+                    temp_sum += utxo.amount
 
-            # Give transaction inputs are not enough
-            if temp_sum < transaction.amount:
+            # Transaction input was not found in the utxo list
+            if not correct_input:
                 return False
 
+        # Give transaction inputs are not enough
+        if temp_sum < transaction.amount:
+            return False
+
+        with blockchain.lock:
             for utxo in utxos_to_be_removed:
                 blockchain.utxos[transaction.sender_address].remove(utxo)
 
@@ -177,28 +187,71 @@ class Node:
                     transaction.sender_address, temp_sum - transaction.amount)
                 transaction.outputs.append(change)
                 blockchain.utxos[transaction.sender_address].append(change)
-            
-            blockchain.transactions.append(transaction)
 
-            if len(blockchain.transactions) == CAPACITY:
-                self.mine_block(blockchain)
+            # If the transaction was part of a block we don't add it as a pending transaction
+            if not part_of_block:
+                blockchain.transactions.append(transaction)
 
-            return True
+        # This part is unlocked because the miner needs the lock
+        if len(blockchain.transactions) == CAPACITY:
+            self.mine_event.set()
+
+        return True
 
     def mine_block(self, blockchain):
-        nonce = random.randint(0, 4294967295)
-        block = Block(blockchain.blocks[-1].index + 1, blockchain.transactions,
-                blockchain.blocks[-1].current_hash, nonce)
         while True:
-            block.nonce = nonce
-            block.current_hash = block.hash()
-            if block.current_hash.startswith('0' * DIFFICULTY):
-                self.broadcast_block(block)
-                break
-            nonce = (nonce + 1) % 4294967295
+            self.mine_event.wait()
 
-        blockchain.blocks.append(block)
-        blockchain.transactions = []
+            # Remove pending transactions that we received in a block
+            with blockchain.lock:
+                to_be_removed = []
+                for transaction in blockchain.transactions:
+                    if transaction.id_ in blockchain.transactions_set:
+                        to_be_removed.append(transaction)
+                for transaction in to_be_removed:
+                    blockchain.transactions.remove(transaction)
+
+            if len(blockchain.transactions) < CAPACITY:
+                self.mine_event.clear()
+                continue                   
+
+            with blockchain.lock:
+                transactions_copy = copy.deepcopy(blockchain.transactions)
+                # Copy CAPACITY transactions that will be put inside of block
+                transactions = copy.deepcopy(blockchain.transactions[:CAPACITY])
+                # Drop CAPACITY transactions
+                blockchain.transactions = blockchain.transactions[CAPACITY:]
+
+            nonce = random.randint(0, 4294967295)
+            block = Block(blockchain.blocks[-1].index + 1, transactions,
+                    blockchain.blocks[-1].current_hash, nonce)
+            while True:
+                block.nonce = nonce
+                block.current_hash = block.hash()
+                if block.current_hash.startswith('0' * DIFFICULTY):
+                    break
+                nonce = (nonce + 1) % 4294967295
+
+            # Acquire the lock inside the if statement because valid proof also uses the lock
+            status = self.valid_proof(block, blockchain)
+            if status == 'resolved conflict':
+                continue
+            elif status == 'success':
+                with blockchain.lock:
+                    for transaction in block.list_of_transactions:
+                        # Our block has a transaction that is already in the blockchain
+                        if transaction.id_ in blockchain.transactions_set:
+                            continue
+                    for transaction in block.list_of_transactions:
+                        blockchain.transactions_set.add(transaction.id_)
+                    self.broadcast_block(block)
+                    blockchain.blocks.append(block)
+
+            else:
+                with blockchain.lock:
+                    # If something bad happened we restore our transactions
+                    blockchain.transactions = transactions_copy
+
 
     def valid_proof(self, block, blockchain, previous_hash=None):
         # Invalid number of transactions in block
@@ -237,30 +290,31 @@ class Node:
         # Validate all blocks except for the first one
         for i, b in enumerate(blockchain.blocks[:-1]):
             # Send the current block along with the hash of its previous block
-            valid = self.valid_proof(blockchain.blocks[i+1], blockchain,
-                    blockchain.blocks[i])
-            if not valid:
+            status = self.valid_proof(blockchain.blocks[i+1], blockchain,
+                    blockchain.blocks[i].current_hash)
+            if status != 'success':
                 return False 
         return True
 
     # Consensus algorithm
     def resolve_conflicts(self, blockchain):
         responses = []
-        for n, info in self.network:
+        for n, info in self.network.items():
             if n != self.wallet.public_key:
                 ip = info['ip']
                 port = info['port']
                 response = requests.get(f'http://{ip}:{port}/blockchain')
                 responses.append(response)
 
-        max_chain_length = len(blockchain)
-        for response in responses:
-            blockchain_dict = response.json()
-            peer_blockchain = Blockchain.from_dict(blockchain_dict)
+        max_chain_length = len(blockchain.blocks)
+        with blockchain.lock:
+            for response in responses:
+                blockchain_dict = response.json()
+                peer_blockchain = Blockchain.from_dict(blockchain_dict)
 
-            # Keep the longest chain
-            if len(peer_blockchain.blocks) > max_chain_length:
-                max_chain_length = len(peer_blockchain.blocks)
-                blockchain.blocks = peer_blockchain.blocks
-                blockchain.transactions = peer_blockchain.transactions
-                blockchain.utxos = peer_blockchain.utxos
+                # Keep the longest chain
+                if len(peer_blockchain.blocks) > max_chain_length:
+                    max_chain_length = len(peer_blockchain.blocks)
+                    blockchain.blocks = peer_blockchain.blocks
+                    blockchain.transactions = peer_blockchain.transactions
+                    blockchain.utxos = peer_blockchain.utxos

@@ -13,9 +13,14 @@ class Prompt(Cmd):
         if len(tokens) != 2:
             print('Usage: t <recipient_id> <amount>')
             return
-        
-        recipient_id = int(tokens[0])
-        amount = int(tokens[1])
+       
+        try:
+            recipient_id = int(tokens[0])
+            amount = int(tokens[1])
+        except ValueError:
+            print('Invalid id or amount')
+            return
+
         dictionary = {'recipient_id': recipient_id,
                       'amount': amount}
         response = requests.post(self.backend_url + 'transaction/local', json=dictionary)
@@ -34,6 +39,16 @@ class Prompt(Cmd):
                   '\nTo ->\n', transaction['recipient_address'],
                   '\nAmount-> ', transaction['amount'], '\n', sep='')
 
+    def do_viewall(self, line):
+        """Fetch all the transactions"""
+        response = requests.get(self.backend_url + 'blockchain')
+        blocks = response.json()['blocks']
+        for block in blocks:
+            list_of_transactions = block['list_of_transactions']
+            for transaction in list_of_transactions:
+                print('Transaction: From ->\n', transaction['sender_address'],
+                  '\nTo ->\n', transaction['recipient_address'],
+                  '\nAmount-> ', transaction['amount'], '\n', sep='')
 
     def do_balance(self, line):
         """Returns the balance of wallet"""

@@ -1,3 +1,4 @@
+import threading
 import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -15,6 +16,8 @@ FLASK_PORT = None
 # Create the blockchain and initialize the node
 blockchain = Blockchain()
 node = Node()
+node.miner = threading.Thread(target=node.mine_block, args=[blockchain])
+node.miner.start()
 
 #--------------------------------------------------------------------
 #------------------------------REST API------------------------------
@@ -99,8 +102,28 @@ def post_block():
     block_dict = request.get_json()
     block = Block.from_dict(block_dict)
     status = node.valid_proof(block, blockchain)
-    if 'success':
-        blockchain.blocks.append(block)
+
+    if status == 'success':
+        to_be_removed = []
+        for transaction in block.list_of_transactions:
+            if transaction.id_  in blockchain.transactions_set:
+                return jsonify('block transaction already added'), 400
+
+            # Add transaction if we don't already have it
+            node.add_transaction(transaction.to_dict(), blockchain, part_of_block=True)
+            for t in blockchain.transactions:
+                if t.id_ == transaction.id_:
+                    to_be_removed.append(t)
+
+        # Remove transactions in the received block from our pending ones
+        with blockchain.lock:
+            for transaction in block.list_of_transactions:
+                blockchain.transactions_set.add(transaction.id_)
+            for transaction in to_be_removed:
+                blockchain.transactions.remove(transaction)
+
+            blockchain.blocks.append(block)
+
         return jsonify(status), 200
     else:
         return jsonify(status), 400
