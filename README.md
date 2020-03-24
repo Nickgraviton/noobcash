@@ -28,7 +28,9 @@ Simple blockchain implementation in python
 * `client.py:` This class is responsible for handling user requests and initializing the blockchain after the Flask server has started.
 * `prompt.py:` This class provides a CLI supporting a few user operations specifically:
     * `t <recipient_address> <amount>:` Sends amount Noobcash Coins(NBC) to the recipient address
+    * `transactions <transactions_folder>:` Issues the transactions inside the specified folder. It searches for files of the format transactions<local_id>.txt
     * `view:` Prints out the details of all the transactions in the last validated block in the blockchain
+    * `viewall:` Prints out the details of all the transactions in the blockchain
     * `balance:` Prints out the wallet's current balance
     * `help:` Explains what each command does if given an argument or provides a list of available commands when no argument is supplied
     * `EOF/quit:` Exit the client CLI
@@ -43,5 +45,3 @@ Simple blockchain implementation in python
 5. Run `client.py` on one node as a coordinator: `python3 client/client.py -p <local_flask_port> -t coordinator -m <number_of_members_in_the_network>`
 6. Run `client.py` on all other nodes as members: `python3 client/client.py -p <local_flask_port>`
 7. Issue commands on the client CLI.
-
-Optionally if a `-f <file>` argument is provided in `client.py`, then the transactions specified in the file are sent to the network
