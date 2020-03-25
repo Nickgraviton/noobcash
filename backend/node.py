@@ -233,7 +233,11 @@ class Node:
             while True:
                 block.nonce = nonce
                 block.current_hash = block.hash()
-                if block.current_hash.startswith('0' * DIFFICULTY):
+                
+                # Convert the hex representation to a binary number
+                # We use the `1` to keep the leading zeros and then we discrd it using `[3:]`
+                easier_hash = bin(int('1'+block.current_hash, 16))[3:]
+                if easier_hash.startswith('0' * DIFFICULTY):
                     break
                 nonce = (nonce + 1) % 4294967295
 
@@ -243,6 +247,7 @@ class Node:
 
             # Acquire the lock inside the if statement because valid proof also uses the lock
             status = self.valid_proof(block, blockchain)
+            print("mined block with status", status, "with hash", block.current_hash, "and previous hash", block.previous_hash)
             if status == 'success':
                 with blockchain.lock:
                     for transaction in block.list_of_transactions:
@@ -264,7 +269,8 @@ class Node:
             return 'hashes do not match'
 
         # Invalid nonce
-        if not block.current_hash.startswith('0' * DIFFICULTY):
+        easier_hash = bin(int('1'+block.current_hash, 16))[3:]
+        if not easier_hash.startswith('0' * DIFFICULTY):
             return 'invalid nonce'
 
         # New block was found so we check if it can be added to the end of our blockchain

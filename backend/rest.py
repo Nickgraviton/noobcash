@@ -102,6 +102,7 @@ def post_block():
     block_dict = request.get_json()
     block = Block.from_dict(block_dict)
     status = node.valid_proof(block, blockchain)
+    print("received block with status", status, "and hash", block.current_hash, "and previous hash", block.previous_hash)
 
     if status == 'success':
         to_be_removed = []
@@ -197,20 +198,21 @@ def post_init_member():
 @app.route('/stats', methods=['GET'])
 def get_stats():
     # Return a success status only if there are no pending transactions
-    if not blockchain.transactions:
-        total_time = blockchain.blocks[-1].timestamp - blockchain.blocks[0].list_of_transactions[0].timestamp
-        total_transactions = len(blockchain.blocks) * CAPACITY
-        throughput = total_transactions / total_time
+    total_time = blockchain.blocks[-1].timestamp - blockchain.blocks[0].list_of_transactions[0].timestamp
+    total_transactions = len(blockchain.blocks) * CAPACITY
+    throughput = total_transactions / total_time if total_time != 0 else 0
 
-        average_mine_time = node.mine_time / node.mine_counter
+    average_mine_time = node.mine_time / node.mine_counter if node.mine_counter != 0 else 0
 
-        response = {'total_transactions': total_transactions,
-                    'throughput': throughput,
-                    'mine_time': average_mine_time}
+    response = {'pending_transactions': str(len(blockchain.transactions)),
+                'total_transactions': total_transactions,
+                'throughput': throughput,
+                'mine_time': average_mine_time}
+
+    if len(blockchain.transactions) < CAPACITY:
         return jsonify(response), 200
     else:
-        return jsonify(''), 400
-    
+        return jsonify(response), 400
 
 # Run it once fore every node
 if __name__ == '__main__':

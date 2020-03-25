@@ -46,4 +46,5 @@ class Block:
         return Block(**dictionary)
 
     def hash(self):
-        return SHA256.new(json.dumps(self.to_dict_(), sort_keys=True).encode('utf-8')).hexdigest()
+        h = SHA256.new(json.dumps(self.to_dict_(), sort_keys=True).encode('utf-8'))
+        return h.hexdigest()
