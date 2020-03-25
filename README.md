@@ -42,7 +42,7 @@ Simple blockchain implementation in python
 1. Set up a virtual environment:`python3 -m venv .venv`
 2. Activate the virtual environment: `source .venv/bin/activate`
 3. Install the requirements: `pip3 install -r requirements.txt`
-4. Run the flask server on each node: `python3 backend/rest.py -p <local_flask_port>`
-5. Run `client.py` on one node as a coordinator: `python3 client/client.py -p <local_flask_port> -t coordinator -m <number_of_members_in_the_network>`
-6. Run `client.py` on all other nodes as members: `python3 client/client.py -p <local_flask_port>`
+4. Run the flask server on each node: `python3 backend/rest.py -i <IP_that_will_host_the_flask_server> -p <local_flask_port>`
+5. Run `client.py` on one node as a coordinator: `python3 client/client.py -i <IP_that_hosts_the_flask_server> -p <local_flask_port> -t coordinator -m <number_of_members_in_the_network>`
+6. Run `client.py` on all other nodes as members: `python3 client/client.py -i <IP_that_hosts_the_flask_server> -p <local_flask_port>`
 7. Issue commands on the client CLI.

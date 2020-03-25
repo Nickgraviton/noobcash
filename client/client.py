@@ -3,6 +3,8 @@ from argparse import ArgumentParser
 from prompt import Prompt
 
 parser = ArgumentParser()
+parser.add_argument('-i', '--ip', default='127.0.0.1', type=str,
+        help='IP that hosts the flask server')
 parser.add_argument('-p', '--port', default=5000, type=int,
         help='port that flask listens to')
 parser.add_argument('-t', '--type', default='member', type=str,
@@ -11,11 +13,12 @@ parser.add_argument('-m', '--members', default='5', type=int,
         help='number of members of the network used from the coordinator')
 
 args = parser.parse_args()
+ip = args.ip
 port = args.port
 node_type = args.type
 members = args.members
 
-backend_url = 'http://127.0.0.1:{}/'.format(port)
+backend_url = 'http://{}:{}/'.format(ip, port)
 
 # Initialize backend by creating the genesis block or connecting to the coordinator
 if (node_type.lower().startswith('c')):
