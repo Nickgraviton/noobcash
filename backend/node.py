@@ -137,7 +137,7 @@ class Node:
 
         self.broadcast_transaction(transaction)
 
-        if len(blockchain.transactions) == CAPACITY:
+        if len(blockchain.transactions) >= CAPACITY:
             self.mine_event.set()
 
         return True
@@ -199,7 +199,7 @@ class Node:
                 blockchain.transactions.append(transaction)
 
         # This part is unlocked because the miner needs the lock
-        if len(blockchain.transactions) == CAPACITY:
+        if len(blockchain.transactions) >= CAPACITY:
             self.mine_event.set()
 
         return True
@@ -222,11 +222,8 @@ class Node:
                 continue                   
 
             with blockchain.lock:
-                transactions_copy = copy.deepcopy(blockchain.transactions)
                 # Copy CAPACITY transactions that will be put inside of block
                 transactions = copy.deepcopy(blockchain.transactions[:CAPACITY])
-                # Drop CAPACITY transactions
-                blockchain.transactions = blockchain.transactions[CAPACITY:]
 
             start = time.time()
 
@@ -246,9 +243,7 @@ class Node:
 
             # Acquire the lock inside the if statement because valid proof also uses the lock
             status = self.valid_proof(block, blockchain)
-            if status == 'resolved conflict':
-                continue
-            elif status == 'success':
+            if status == 'success':
                 with blockchain.lock:
                     for transaction in block.list_of_transactions:
                         # Our block has a transaction that is already in the blockchain
@@ -258,12 +253,6 @@ class Node:
                         blockchain.transactions_set.add(transaction.id_)
                     blockchain.blocks.append(block)
                 self.broadcast_block(block)
-
-            else:
-                with blockchain.lock:
-                    # If something bad happened we restore our transactions
-                    blockchain.transactions = transactions_copy
-
 
     def valid_proof(self, block, blockchain, previous_hash=None):
         # Invalid number of transactions in block
