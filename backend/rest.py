@@ -201,7 +201,7 @@ def get_stats():
 
         average_mine_time = node.mine_time / node.mine_counter
 
-        response = {'total_transactions': total_transactions
+        response = {'total_transactions': total_transactions,
                     'throughput': throughput,
                     'mine_time': average_mine_time}
         return jsonify(response), 200
