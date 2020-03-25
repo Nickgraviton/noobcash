@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import threading
 
 from block import Block
@@ -31,9 +30,9 @@ class Blockchain:
         for key, values in self.utxos.items():
             sendable_utxos[key] = [v.to_dict() for v in values]
 
-        return OrderedDict({'blocks': sendable_blocks,
-                            'transactions': sendable_transactions,
-                            'utxos': sendable_utxos})
+        return {'blocks': sendable_blocks,
+                'transactions': sendable_transactions,
+                'utxos': sendable_utxos}
 
     # Restore Blockchain after it's been sent to us with the to_dict function
     @staticmethod

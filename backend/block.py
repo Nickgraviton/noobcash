@@ -1,6 +1,5 @@
 import time
 import json
-from collections import OrderedDict
 from Crypto.Hash import SHA256
 
 from transaction import Transaction
@@ -26,11 +25,11 @@ class Block:
 
     def to_dict_(self):
         sendable_transactions = [t.to_dict() for t in self.list_of_transactions]
-        return OrderedDict({'timestamp': self.timestamp,
-                            'index': self.index,
-                            'list_of_transactions': sendable_transactions,
-                            'previous_hash': self.previous_hash,
-                            'nonce': self.nonce})
+        return {'timestamp': self.timestamp,
+                'index': self.index,
+                'list_of_transactions': sendable_transactions,
+                'previous_hash': self.previous_hash,
+                'nonce': self.nonce}
 
     # Sendable form of the object
     def to_dict(self):
@@ -47,4 +46,4 @@ class Block:
         return Block(**dictionary)
 
     def hash(self):
-        return SHA256.new(json.dumps(self.to_dict_()).encode('utf-8')).hexdigest()
+        return SHA256.new(json.dumps(self.to_dict_(), sort_keys=True).encode('utf-8')).hexdigest()

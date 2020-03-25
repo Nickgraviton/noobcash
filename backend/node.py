@@ -69,7 +69,7 @@ class Node:
         key = RSA.import_key(self.wallet.private_key.encode())
         signer = pkcs1_15.new(key)
 
-        h = SHA256.new(json.dumps(transaction.to_dict_()).encode('utf-8'))
+        h = SHA256.new(json.dumps(transaction.to_dict_(), sort_keys=True).encode('utf-8'))
         # Encode in base64 so that it is compatible with the format json expects
         transaction.signature = base64.b64encode(signer.sign(h)).decode('utf-8')
 
@@ -79,7 +79,7 @@ class Node:
         key = RSA.import_key(sender.encode())
         verifier = pkcs1_15.new(key)
 
-        h = SHA256.new(json.dumps(transaction.to_dict_()).encode('utf-8'))
+        h = SHA256.new(json.dumps(transaction.to_dict_(), sort_keys=True).encode('utf-8'))
         # Verify function raises ValueError if signature is not valid
         try:
             verifier.verify(h, base64.b64decode(transaction.signature))

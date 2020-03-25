@@ -1,7 +1,6 @@
 import time
 import json
 from Crypto.Hash import SHA256
-from collections import OrderedDict
 
 class Transaction_Output:
     """
@@ -20,9 +19,9 @@ class Transaction_Output:
 
     # Helper function used in hash and to_dict
     def to_dict_(self):
-        return OrderedDict({'origin_transaction_id': self.origin_transaction_id,
+        return {'origin_transaction_id': self.origin_transaction_id,
                             'recipient_address': self.recipient_address,
-                            'amount': self.amount})
+                            'amount': self.amount}
 
     # Sendable form of the object
     def to_dict(self):
@@ -39,7 +38,7 @@ class Transaction_Output:
     def hash(self):
         info = self.to_dict_()
         info['timestamp'] = time.time()
-        return SHA256.new(json.dumps(info).encode('utf-8')).hexdigest()
+        return SHA256.new(json.dumps(info, sort_keys=True).encode('utf-8')).hexdigest()
 
 
 class Transaction:
@@ -69,10 +68,10 @@ class Transaction:
 
     # Function used to create a dictionary to sign the transaction
     def to_dict_(self):
-        return OrderedDict({'sender_address': self.sender_address,
-                            'recipient_address': self.recipient_address,
-                            'amount': self.amount,
-                            'timestamp': self.timestamp})
+        return {'sender_address': self.sender_address,
+                'recipient_address': self.recipient_address,
+                'amount': self.amount,
+                'timestamp': self.timestamp}
 
     # Function used to create a dictionary of a transaction to be sent
     def to_dict(self):
@@ -88,4 +87,4 @@ class Transaction:
         return Transaction(**dictionary)
 
     def hash(self):
-        return SHA256.new(json.dumps(self.to_dict_()).encode('utf-8')).hexdigest()
+        return SHA256.new(json.dumps(self.to_dict_(), sort_keys=True).encode('utf-8')).hexdigest()
