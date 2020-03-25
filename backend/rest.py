@@ -135,7 +135,6 @@ def register_member():
     # If process is on the same node as the coordinator we use the coordinator IP
     if member_ip == '127.0.0.1':
         member_ip = COORDINATOR_IP
-    print(member_ip)
     data = request.get_json()
     
     port = data['port']

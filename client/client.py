@@ -15,7 +15,7 @@ port = args.port
 node_type = args.type
 members = args.members
 
-backend_url = f'http://127.0.0.1:{port}/'
+backend_url = 'http://127.0.0.1:{}/'.format(port)
 
 # Initialize backend by creating the genesis block or connecting to the coordinator
 if (node_type.lower().startswith('c')):
