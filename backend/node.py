@@ -247,7 +247,6 @@ class Node:
 
             # Acquire the lock inside the if statement because valid proof also uses the lock
             status = self.valid_proof(block, blockchain)
-            print("mined block with status", status, "with hash", block.current_hash, "and previous hash", block.previous_hash)
             if status == 'success':
                 with blockchain.lock:
                     for transaction in block.list_of_transactions:

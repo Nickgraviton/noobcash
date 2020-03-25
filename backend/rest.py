@@ -102,7 +102,6 @@ def post_block():
     block_dict = request.get_json()
     block = Block.from_dict(block_dict)
     status = node.valid_proof(block, blockchain)
-    print("received block with status", status, "and hash", block.current_hash, "and previous hash", block.previous_hash)
 
     if status == 'success':
         to_be_removed = []
