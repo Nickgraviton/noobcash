@@ -3,7 +3,7 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from properties import COORDINATOR_IP, COORDINATOR_PORT
+from properties import COORDINATOR_IP, COORDINATOR_PORT, CAPACITY
 from block import Block
 from node import Node
 from blockchain import Blockchain
@@ -141,7 +141,7 @@ def register_member():
     next_id = node.register_node_to_network(public_key, member_ip, port)
 
     # Send current blockchain to new member
-    requests.post(f'http://{member_ip}:{port}/blockchain', json=blockchain.to_dict())
+    requests.post('http://{}:{}/blockchain'.format(member_ip, port), json=blockchain.to_dict())
 
     # Send 100 NBC to new member
     node.create_transaction(public_key, 100, blockchain)
@@ -184,11 +184,30 @@ def post_init_coordinator():
 @app.route('/initialize/member', methods=['GET'])
 def post_init_member():
     data = {'port': FLASK_PORT, 'public_key': node.wallet.public_key}
-    response = requests.post(f'http://{COORDINATOR_IP}:{COORDINATOR_PORT}/register', json=data)
+    response = requests.post('http://{}:{}/register'.format(COORDINATOR_IP, COORDINATOR_PORT), json=data)
     node.id_ = response.json()['id_']
 
     info = {'id_': node.id_}
     return jsonify(info), response.status_code
+
+# Return the transaction throughput and average mine time
+@app.route('/stats', methods=['GET'])
+def get_stats():
+    # Return a success status only if there are no pending transactions
+    if not blockchain.transactions:
+        total_time = blockchain.blocks[-1].timestamp - blockchain.blocks[0].list_of_transactions[0].timestamp
+        total_transactions = len(blockchain.blocks) * CAPACITY
+        throughput = total_transactions / total_time
+
+        average_mine_time = node.mine_time / node.mine_counter
+
+        response = {'total_transactions': total_transactions
+                    'throughput': throughput,
+                    'mine_time': average_mine_time}
+        return jsonify(response), 200
+    else:
+        return jsonify(''), 400
+    
 
 # Run it once fore every node
 if __name__ == '__main__':

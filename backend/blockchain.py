@@ -11,6 +11,8 @@ class Blockchain:
     utxos: A dictionary of the unspent transactions for each node in the
            network where the key is their public key and the value is a
            list of transaction output objects
+    transactions_set: A set of unique transaction ids to avoid double spending
+    lock: Blockchain lock to ensure mutual exclusion between the flask and the miner threads
     """
 
     def __init__(self, blocks=[], transactions=[], utxos={}):
@@ -19,6 +21,7 @@ class Blockchain:
         self.utxos = utxos
         self.transactions_set = set()
         self.lock = threading.Lock()
+        self.mine_time = 0
 
     # Sendable form of the object
     def to_dict(self):

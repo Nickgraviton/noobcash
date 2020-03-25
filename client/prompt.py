@@ -71,6 +71,17 @@ class Prompt(Cmd):
                               'amount': amount}
                 requests.post(self.backend_url + 'transaction/local', json=dictionary)
 
+    def do_stats(self, line):
+        """Requests stats from the backend"""
+        response = requests.get(self.backend_url + 'stats')
+        if response.status_code == 200:
+            dictionary = response.json()
+            total_transactions = dictionary['total_transactions']
+            throughput = dictionary['throughput']
+            mine_time = dictionary['mine_time']
+            print("Total transactions:", total_transactions, "Throughput:", throughput, "Average mine time:", mine_time)
+        else:
+            print("There are still pending transactions")
 
     def do_quit(self, line):
         """Quits the program"""
