@@ -132,6 +132,10 @@ def post_block():
 @app.route('/register', methods=['POST'])
 def register_member():
     member_ip = request.remote_addr
+    # If process is on the same node as the coordinator we use the coordinator IP
+    if member_ip == '127.0.0.1':
+        member_ip = COORDINATOR_IP
+    print(member_ip)
     data = request.get_json()
     
     port = data['port']
