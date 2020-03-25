@@ -218,11 +218,11 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('-i', '--ip', default='127.0.0.1', type=str,
-        help='IP to host the flask server')
+        help='IP to host the flask server', dest='host')
     parser.add_argument('-p', '--port', default=5000, type=int,
         help='port to listen on')
     args = parser.parse_args()
-    ip = parser.ip
+    host = args.host
     FLASK_PORT = args.port
 
-    app.run(host=ip, port=FLASK_PORT)
+    app.run(host=host, port=FLASK_PORT)
