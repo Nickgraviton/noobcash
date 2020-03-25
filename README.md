@@ -33,6 +33,7 @@ Simple blockchain implementation in python
     * `viewall:` Prints out the details of all the transactions in the blockchain
     * `balance:` Prints out the wallet's current balance
     * `help:` Explains what each command does if given an argument or provides a list of available commands when no argument is supplied
+    * `stats:` Prints final stats if all pending transactions have been put in a block
     * `EOF/quit:` Exit the client CLI
 
 `requirements.txt:` Python package requirements
