@@ -197,16 +197,17 @@ def post_init_member():
 @app.route('/stats', methods=['GET'])
 def get_stats():
     # Return a success status only if there are no pending transactions
+    total_blocks = len(blockchain.blocks)
+    total_transactions = total_blocks * CAPACITY
     total_time = blockchain.blocks[-1].timestamp - blockchain.blocks[0].list_of_transactions[0].timestamp
-    total_transactions = len(blockchain.blocks) * CAPACITY
-    throughput = total_transactions / total_time if total_time != 0 else 0
 
-    average_mine_time = node.mine_time / node.mine_counter if node.mine_counter != 0 else 0
+    throughput = total_transactions / total_time if total_time != 0 else 0
+    average_block_time = total_blocks / total_time if total_time != 0 else 0 
 
     response = {'pending_transactions': str(len(blockchain.transactions)),
                 'total_transactions': total_transactions,
                 'throughput': throughput,
-                'mine_time': average_mine_time}
+                'block_time': average_block_time}
 
     if len(blockchain.transactions) < CAPACITY:
         return jsonify(response), 200

@@ -83,9 +83,9 @@ class Prompt(Cmd):
         pending = dictionary['pending_transactions']
         total_transactions = dictionary['total_transactions']
         throughput = dictionary['throughput']
-        mine_time = dictionary['mine_time']
+        block_time = dictionary['block_time']
 
-        print("Total transactions:", total_transactions, "Throughput:", throughput, "Average mine time:", mine_time)
+        print("Total transactions:", total_transactions, "Throughput:", throughput, "Average block time:", block_time)
         print("There are still", pending, "transactions pending")
 
     def do_quit(self, line):

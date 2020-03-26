@@ -7,7 +7,6 @@ import json
 import base64
 import copy
 import threading
-import time
 
 from block import Block
 from blockchain import Blockchain
@@ -26,8 +25,6 @@ class Node:
     miner: The thread running the miner so that mining doesn't
            block the application
     mine_event: Event we set to signal to the miner that he can mine
-    mine_time: Sum of the mine time of all blocks
-    mine_counter: Times we successfully mined a block
     """
 
     def __init__(self):
@@ -37,8 +34,6 @@ class Node:
         self.wallet = Wallet()
         self.miner = None
         self.mine_event = threading.Event()
-        self.mine_time = 0
-        self.mine_counter = 0
 
     def register_node_to_network(self, public_key, member_ip, port):
         next_id = len(self.network)
@@ -225,8 +220,6 @@ class Node:
                 # Copy CAPACITY transactions that will be put inside of block
                 transactions = copy.deepcopy(blockchain.transactions[:CAPACITY])
 
-            start = time.time()
-
             nonce = random.randint(0, 4294967295)
             block = Block(blockchain.blocks[-1].index + 1, transactions,
                     blockchain.blocks[-1].current_hash, nonce)
@@ -237,10 +230,6 @@ class Node:
                 if block.current_hash.startswith('0' * DIFFICULTY):
                     break
                 nonce = (nonce + 1) % 4294967295
-
-            end = time.time()
-            self.mine_time += end - start
-            self.mine_counter += 1
 
             # Acquire the lock inside the if statement because valid proof also uses the lock
             status = self.valid_proof(block, blockchain)

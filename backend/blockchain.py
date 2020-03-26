@@ -20,7 +20,6 @@ class Blockchain:
         self.utxos = utxos
         self.transactions_set = set()
         self.lock = threading.Lock()
-        self.mine_time = 0
 
     # Sendable form of the object
     def to_dict(self):
