@@ -234,10 +234,7 @@ class Node:
                 block.nonce = nonce
                 block.current_hash = block.hash()
                 
-                # Convert the hex representation to a binary number
-                # We use the `1` to keep the leading zeros and then we discrd it using `[3:]`
-                easier_hash = bin(int('1'+block.current_hash, 16))[3:]
-                if easier_hash.startswith('0' * DIFFICULTY):
+                if block.current_hash.startswith('0' * DIFFICULTY):
                     break
                 nonce = (nonce + 1) % 4294967295
 
@@ -268,8 +265,7 @@ class Node:
             return 'hashes do not match'
 
         # Invalid nonce
-        easier_hash = bin(int('1'+block.current_hash, 16))[3:]
-        if not easier_hash.startswith('0' * DIFFICULTY):
+        if not block.current_hash.startswith('0' * DIFFICULTY):
             return 'invalid nonce'
 
         # New block was found so we check if it can be added to the end of our blockchain
